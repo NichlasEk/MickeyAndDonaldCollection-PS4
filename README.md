@@ -1,5 +1,7 @@
 # Mickey & Donald Collection — PC Edition
 
+Experimental OpenOrbis/Vulkan PS4 branch: [build, ROM paths and current limitations](docs/PS4.md).
+
 A Windows port of three Sega Mega Drive / Genesis classics, with a launcher, widescreen up to 21:9,
 modern display options, gamepad support, cheats, level select, save states, fast forward / rewind and a
 music player:

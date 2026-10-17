@@ -28,6 +28,27 @@ add_library(mdcore STATIC
 )
 target_include_directories(mdcore PUBLIC src)
 
+option(MDC_PS4 "Build OpenOrbis bring-up runner" OFF)
+option(MDC_HEADLESS "Build portable ROM smoke test and CPU tests" OFF)
+if(MDC_PS4 OR MDC_HEADLESS)
+    add_library(mdc_session STATIC src/app/session.cpp src/app/palette.cpp
+        src/app/audio_mixer.cpp src/app/settings.cpp platform/ps4/settings_io.cpp)
+    target_link_libraries(mdc_session PUBLIC mdcore)
+    if(MDC_PS4)
+        add_subdirectory(platform/ps4)
+    else()
+        enable_testing()
+        foreach(cpu m68k z80)
+            add_executable(${cpu}_test tests/${cpu}_test.cpp)
+            target_link_libraries(${cpu}_test PRIVATE mdcore)
+            add_test(NAME ${cpu} COMMAND ${cpu}_test)
+        endforeach()
+        add_executable(mdc_smoke platform/ps4/smoke.cpp)
+        target_link_libraries(mdc_smoke PRIVATE mdc_session)
+    endif()
+    return()
+endif()
+
 # ---- the game -----------------------------------------------------------------
 add_executable(DisneyClassics WIN32
     src/app/main.cpp
