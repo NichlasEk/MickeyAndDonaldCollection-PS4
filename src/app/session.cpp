@@ -60,6 +60,7 @@ void Session::power_on() {
 
 void Session::soft_reset() {
     md_->soft_reset();
+    mixer_.reset();
 }
 
 bool Session::start_level(int index, int variant) {

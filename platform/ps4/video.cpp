@@ -1,5 +1,6 @@
 // Minimal native Vulkan presenter. The PS4 ICD owns VideoOut and accepts a null surface.
 #include "video.h"
+#include "presentation.h"
 #include "shaders.h"
 #include <vulkan/vulkan.h>
 #include <algorithm>
@@ -8,6 +9,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <orbis/libkernel.h>
 namespace {
 void check(VkResult r, const char* operation) {
     if (r != VK_SUCCESS) throw std::runtime_error(std::string(operation) + ": " + std::to_string(r));
@@ -26,7 +28,9 @@ struct PS4Video::Impl {
     VkBuffer vertices{}; VkDeviceMemory vertex_memory{}; void* vertex_map{};
     VkSampler sampler{}; VkDescriptorSetLayout set_layout{}; VkDescriptorPool descriptors{}; VkDescriptorSet set{};
     VkCommandPool commands{}; VkCommandBuffer command{}; VkFence fence{};
-    bool first = true;
+    bool first = true, pending = false;
+    uint32_t pending_index=0;
+    PS4VideoTiming timing;
     uint32_t memory_type(uint32_t bits) {
         VkPhysicalDeviceMemoryProperties props{}; vkGetPhysicalDeviceMemoryProperties(physical, &props);
         for (unsigned i = 0; i < props.memoryTypeCount; ++i)
@@ -58,7 +62,7 @@ struct PS4Video::Impl {
         d.enabledExtensionCount = 1; d.ppEnabledExtensionNames = &extension;
         VK(vkCreateDevice(physical, &d, nullptr, &device)); vkGetDeviceQueue(device, 0, 0, &queue);
         VkSwapchainCreateInfoKHR s{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
-        s.minImageCount = 2; s.imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
+        s.minImageCount = 4; s.imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
         s.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR; s.imageExtent = {screen_w, screen_h};
         s.imageArrayLayers = 1; s.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         s.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
@@ -155,6 +159,19 @@ struct PS4Video::Impl {
         VkFenceCreateInfo fi{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO}; VK(vkCreateFence(device,&fi,nullptr,&fence));
     }
     void present(const uint32_t* bgra, int w, int h) {
+        uint64_t work_start=sceKernelGetProcessTime(), flip_us=0;
+        // The CPU emulates the next frame while the preceding draw runs. Wait
+        // before reusing its texture, vertices, command buffer or EOP packet.
+        if(pending) {
+            VK(vkWaitForFences(device,1,&fence,VK_TRUE,2000000000ull));
+            VkPresentInfoKHR pi{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+            pi.swapchainCount=1; pi.pSwapchains=&swap; pi.pImageIndices=&pending_index;
+            uint64_t flip_start=sceKernelGetProcessTime();
+            VK(vkQueuePresentKHR(queue,&pi));
+            ps4_check_present();
+            flip_us=sceKernelGetProcessTime()-flip_start;
+            pending=false;
+        }
         if(!bgra || w<=0 || w>int(tex_w) || h<=0 || h>int(tex_h)) throw std::runtime_error("Invalid frame size");
         for(int y=0;y<h;++y) {
             auto* dst=reinterpret_cast<uint32_t*>(static_cast<uint8_t*>(texture_map)+texture_layout.offset+y*texture_layout.rowPitch);
@@ -174,6 +191,9 @@ struct PS4Video::Impl {
         uint32_t index=0; VK(vkAcquireNextImageKHR(device,swap,2000000000ull,VK_NULL_HANDLE,fence,&index));
         VK(vkWaitForFences(device,1,&fence,VK_TRUE,2000000000ull));
         if(index>=targets.size()) throw std::runtime_error("Invalid swapchain index");
+        uint64_t retire_start=sceKernelGetProcessTime();
+        ps4_wait_image_reusable(index);
+        uint64_t retire_us=sceKernelGetProcessTime()-retire_start;
         VK(vkResetCommandBuffer(command,0));
         VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}; begin.flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         VK(vkBeginCommandBuffer(command,&begin));
@@ -194,9 +214,9 @@ struct PS4Video::Impl {
         VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
         submit.commandBufferCount=1; submit.pCommandBuffers=&command;
         VK(vkResetFences(device,1,&fence)); VK(vkQueueSubmit(queue,1,&submit,fence));
-        VK(vkWaitForFences(device,1,&fence,VK_TRUE,2000000000ull));
-        VkPresentInfoKHR pi{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR}; pi.swapchainCount=1; pi.pSwapchains=&swap; pi.pImageIndices=&index;
-        VK(vkQueuePresentKHR(queue,&pi)); VK(vkQueueWaitIdle(queue)); first=false;
+        pending=true; pending_index=index;
+        timing={sceKernelGetProcessTime()-work_start-retire_us-flip_us,flip_us+retire_us};
+        first=false;
     }
     ~Impl() {
         // Process-exit ownership for bring-up: do not attempt cleanup after a lost GPU.
@@ -206,3 +226,4 @@ struct PS4Video::Impl {
 PS4Video::PS4Video():p(new Impl) { p->init(); }
 PS4Video::~PS4Video() = default;
 void PS4Video::present(const uint32_t* pixels,int w,int h) { p->present(pixels,w,h); }
+PS4VideoTiming PS4Video::timing() const { return p->timing; }

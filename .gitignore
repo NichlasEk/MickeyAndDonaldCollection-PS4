@@ -69,3 +69,18 @@ android/keystore.properties
 *.keystore
 *.apk
 third_party/SDL2-*-src/
+
+# Native toolchain outputs and local credentials
+*.pkg
+*.elf
+*.oelf
+*.self
+*.prx
+*.a
+*.o
+*.so
+.env
+.env.*
+*.pem
+*.key
+*.pfx

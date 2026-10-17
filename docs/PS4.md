@@ -9,15 +9,23 @@ frontends are unchanged. This is not yet a complete console edition.
   palette conversion and 16:9 patches.
 - Presents a CPU-rendered frame using a host-visible linear RGBA texture and a
   Vulkan textured quad at 1280x720. Preserves square-pixel aspect ratio.
-- Uses a single frame in flight with CPU fence waits. This avoids the local ICD's
-  shared semaphore epilogue-buffer reuse path, which produced an invalid PM4
-  packet in the initial emulator test.
+- Keeps one GPU submission in flight, overlapping it with next-frame CPU
+  emulation. A fence protects texture, vertex and command-buffer reuse. An
+  app-local OpenGNM adapter queues flips across four display buffers and waits
+  until a later flip retires an image before rendering into it again. This avoids
+  the local ICD's shared semaphore epilogue-buffer reuse bug and redundant idle
+  waits. The adapter targets this specific ICD, not arbitrary Vulkan drivers.
 - Auto-starts the first available supported game: Castle, QuackShot, World.
 - L1 cycles available games; R1 resets the current game. D-pad / left stick moves,
   Square = Mega Drive A, Cross = B, Circle = C, Options = Start.
 - Without ROMs, shows an animated color test pattern; L1 retries ROM loading.
-- One player, no launcher/menu, no audible output, no user save-state UI yet.
-  The original audio generation and save-state code remain in the shared core.
+- Native AudioOut: 48 kHz S16 stereo, 512-frame submissions on a dedicated
+  consumer thread, an 8192-frame ring and a 3072-frame (64 ms) refill target.
+  Audio consumption clocks emulation; display stalls cause frame skipping rather
+  than slowed game audio. An underrun outputs silence and re-primes the queue.
+  Reset and game switching discard queued audio; already submitted hardware
+  blocks may finish. Soft reset also resets the shared resampler.
+- One player, no launcher/menu or user save-state UI yet.
 - GPU objects are allocated once and owned until process exit for this diagnostic.
   GPU failures are logged; resources are not freed after a device-lost error.
 
@@ -87,9 +95,9 @@ Outputs:
 
 - `build/ps4/platform/ps4/MickeyDonaldPS4.elf`
 - `build/runtime/eboot.bin`
-- `dist/MickeyDonald-PS4-0.01-Test.pkg`, SHA-256 sidecar and JSON manifest
+- `dist/MickeyDonald-PS4-0.02-Test.pkg`, SHA-256 sidecar and JSON manifest
 
-Title ID: `MDCL00001`; version: `00.01`. Distinct from ScummVM and UT99.
+Title ID: `MDCL00001`; version: `00.02`. Distinct from ScummVM and UT99.
 The package contains a neutral generated icon and copyright/license notices for
 this project, OpenOrbis, OpenGNM, vulkan-ps4 and opengnm-psbc.
 
@@ -101,6 +109,27 @@ links and SDK sample runtime modules. `EMULATOR_TIMEOUT` defaults to 30 seconds;
 a timeout exit status of 124 is expected for the continuously running app.
 With no X11 display, the script uses Xvfb. Logs go to `build/ps4/emulator.log`.
 
+For local level tests only, put a zero-based level number in
+`build/runtime/mdc-test-level.txt`. Remove it for normal startup. To retain
+per-draw Vulkan tracing, create `build/runtime/mdc-vulkan-trace.txt`; otherwise
+only startup tracing is enabled. Neither marker enters the package allowlist.
+
+## Performance target and measurements
+
+Target: 60 displayed fps, with capacity for about 80 fps (12.5 ms frame work),
+without speeding up the original game. **This target has not been met or verified.**
+The app reports rolling 300-frame display-loop and emulation rates, p95/max
+CPU-plus-render work, separate core/render p95 and average display ownership
+wait. Render work includes GPU fence waits. These are application timings, not
+GPU timestamp queries or a count of unique frames actually scanned out.
+
+In the latest shadPS4/Xvfb first-level run, display-loop throughput was roughly
+50–54 fps (previous baseline about 30). Emulation remained about 60 fps. Core
+batches were 6.5–7.6 ms p95, while render work including waits was 13–18 ms p95;
+combined work was about 18–21 ms p95. The 12.5 ms total budget is therefore not
+established. The host also had other emulator workloads; this is not a clean
+hardware benchmark. Do not stop unrelated processes to improve the numbers.
+
 ## Validation boundary
 
 The first candidate cross-compiles and links with OpenOrbis. Both existing CPU
@@ -109,11 +138,26 @@ Both SPIR-V shaders pass `spirv-val --target-env vulkan1.0`.
 The ROM-free package passes `PkgTool.Core pkg_validate`; all 11 extracted payloads
 match their manifest hashes and the extracted EBOOT matches the tested runtime.
 
-shadPS4 initializes native Vulkan, loads all three games, shows game imagery and
-accepts L1 game switching and Options/Start through its keyboard-to-pad mapping.
-Captured screens include Castle's options menu and QuackShot's story sequence;
-these are startup/menu evidence, not full gameplay validation. The measured
-loop is approximately 30 fps in this emulator setup, below the NTSC core's
-roughly 60 fps. Do not interpret this as physical-console performance or full
-playthrough validation. Audio output, second-player input, menus, filesystem
-save UI and a physical PS4 test remain pending.
+shadPS4 initializes native Vulkan, accepts controller input and switches all
+three games. The latest local level fixture reached each game's first level,
+with game imagery and nonzero captured stereo output through an isolated audio
+sink. Castle and QuackShot had zero recorded underrun frames in that run; World
+had 99 missing sample frames (about 2.1 ms) before re-priming. Earlier runs also
+had occasional underruns; audio stability under stalls still needs testing.
+The four host suites cover both CPU cores, the actual AudioOut consumer against
+a gated mock, and presentation ownership/error handling against a mock timeline.
+These mocks do not validate firmware behavior.
+
+No physical PS4 execution, audible console test, FTP transfer, installation or
+full playthrough has been performed. 60 fps with 80 fps capacity remains an open
+acceptance requirement. Second-player input, launcher/settings and filesystem
+save UI are also pending.
+
+## Public source hygiene
+
+Run `python3 scripts/audit-public-history.py` after committing and before pushing.
+It scans all reachable Git blobs for ROM headers, game-data/build paths and
+common credential signatures. Review the staged file list too; credential
+patterns are heuristic. Original ROMs, canonical ROM copies, captures, saves,
+SDK libraries and PKGs stay local. The PS4 packaging script uses an explicit
+payload allowlist, independently of `.gitignore`.

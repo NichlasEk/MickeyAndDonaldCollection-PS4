@@ -1,6 +1,19 @@
-# Mickey & Donald Collection — PC Edition
+# Mickey & Donald Collection — experimental PS4 port
 
-Experimental OpenOrbis/Vulkan PS4 branch: [build, ROM paths and current limitations](docs/PS4.md).
+OpenOrbis/Vulkan port of [Darhkfox's collection](https://github.com/Darhkfox/MickeyAndDonaldCollection).
+The original MIT license and attribution are retained. This uses Mega Drive
+emulation plus per-game ROM patches; it is not a native decompilation of the games.
+
+The PS4 runner loads all three supported games, renders through native Vulkan,
+and feeds 48 kHz stereo to AudioOut. **Physical PS4 testing is pending.** Current
+shadPS4 tests reach about 50–54 displayed-loop fps; the target of 60 fps with
+roughly 80 fps capacity has not yet been achieved. No ROMs are distributed.
+
+See [PS4 build instructions, controls, ROM paths and test limits](docs/PS4.md).
+The instructions and feature list below describe the upstream PC/Android edition;
+the PS4 runner does not yet include its full launcher, menus or two-player UI.
+
+## Upstream PC and Android edition
 
 A Windows port of three Sega Mega Drive / Genesis classics, with a launcher, widescreen up to 21:9,
 modern display options, gamepad support, cheats, level select, save states, fast forward / rewind and a

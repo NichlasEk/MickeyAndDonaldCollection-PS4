@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 root = Path(__file__).resolve().parents[1]
 sdk = Path(os.environ.get('OO_PS4_TOOLCHAIN', '/opt/openorbis/OpenOrbis/PS4Toolchain'))
 stack = Path(os.environ.get('PS4_STACK', root.parent / 'ScummVM-PS4/.tools/opengnm-stack')).resolve()
-stage = root / 'build/pkg-001'
+stage = root / 'build/pkg-002'
 stage.mkdir(parents=True, exist_ok=True)
 (root / 'dist').mkdir(exist_ok=True)
 tool = sdk / 'bin/linux/PkgTool.Core'
@@ -34,10 +34,10 @@ sfo = stage / 'sce_sys/param.sfo'
 if sfo.exists(): sfo.unlink()
 run(tool, 'sfo_new', sfo)
 for key, kind, size, value in [
-    ('APP_TYPE','Integer',4,'1'), ('APP_VER','Utf8',8,'00.01'), ('ATTRIBUTE','Integer',4,'0'),
+    ('APP_TYPE','Integer',4,'1'), ('APP_VER','Utf8',8,'00.02'), ('ATTRIBUTE','Integer',4,'0'),
     ('CATEGORY','Utf8',4,'gd'), ('CONTENT_ID','Utf8',48,content), ('DOWNLOAD_DATA_SIZE','Integer',4,'0'),
     ('SYSTEM_VER','Integer',4,'0'), ('TITLE','Utf8',128,'Mickey & Donald - PS4 Test'),
-    ('TITLE_ID','Utf8',12,'MDCL00001'), ('VERSION','Utf8',8,'00.01')]:
+    ('TITLE_ID','Utf8',12,'MDCL00001'), ('VERSION','Utf8',8,'00.02')]:
     run(tool,'sfo_setentry',sfo,key,'--type',kind,'--maxsize',size,'--value',value)
 files.append('sce_sys/param.sfo')
 # Explicit allowlist: roms/ and build/local-roms/ are never packaged.
@@ -56,7 +56,7 @@ for name in files:
 ET.indent(tree)
 tree.write(project, encoding='utf-8', xml_declaration=True)
 run(tool,'pkg_build','project.gp4',stage)
-package = root / 'dist/MickeyDonald-PS4-0.01-Test.pkg'
+package = root / 'dist/MickeyDonald-PS4-0.02-Test.pkg'
 shutil.copyfile(stage / (content + '.pkg'), package)
 run(tool,'pkg_validate',package)
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
