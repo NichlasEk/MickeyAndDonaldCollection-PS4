@@ -14,12 +14,16 @@ import time
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--mode', choices=('capacity', 'display'), default='capacity')
+parser.add_argument('--games', default='coi,qs,woi', help='comma-separated coi,qs,woi,lion,aladdin')
 parser.add_argument('--levels', default='0,4,9', help='zero-based level entries, common to all games')
 parser.add_argument('--frames', type=int, default=1200)
 parser.add_argument('--timeout', type=int, default=90, help='seconds per level, including startup')
 args = parser.parse_args()
 if args.mode == "display" and not os.environ.get("DISPLAY"):
     parser.error("display mode requires a desktop X11/XWayland display; Xvfb is unsuitable for pacing acceptance")
+games = args.games.split(',')
+if not games or len(set(games)) != len(games) or not set(games) <= {'coi','qs','woi','lion','aladdin'}:
+    parser.error('invalid game selection')
 levels = [int(x) for x in args.levels.split(',')]
 if not levels or any(x < 0 or x >= 28 for x in levels) or not 300 <= args.frames <= 10000 or args.timeout <= 0:
     parser.error('use levels 0..27, 300..10000 frames and a positive timeout')
@@ -29,7 +33,7 @@ if not emulator.is_file() or not os.access(emulator, os.X_OK):
     parser.error('set SHADPS4 to an executable shadPS4 SDL build')
 runtime = root / 'build/runtime'
 roms = root / 'build/local-roms'
-for path in [runtime / 'eboot.bin', *(roms / (name + '.bin') for name in ('coi', 'qs', 'woi'))]:
+for path in [runtime / 'eboot.bin', *(roms / (name + '.bin') for name in games)]:
     if not path.is_file():
         parser.error(f'missing {path}; build the PS4 runner and prepare local ROMs first')
 stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S-%fZ')
@@ -45,7 +49,7 @@ summary = {'mode': args.mode,
            'emulator': str(emulator.resolve()), 'frames_per_case': args.frames, 'cases': []}
 failed = False
 cases = [(level, game) for level in levels for game in
-         (('coi', 'qs', 'woi') if args.mode == 'display' else (None,))]
+         (games if args.mode == 'display' else (None,))]
 for level, game in cases:
     case = output / f'level-{level}-{game or "all"}'
     stage = case / 'runtime'
@@ -63,7 +67,9 @@ for level, game in cases:
         (stage / 'roms').mkdir()
         (stage / 'roms' / (game + '.bin')).symlink_to(roms / (game + '.bin'))
     else:
-        (stage / 'roms').symlink_to(roms, target_is_directory=True)
+        (stage / 'roms').mkdir()
+        for name in games:
+            (stage / 'roms' / (name + '.bin')).symlink_to(roms / (name + '.bin'))
     (stage / 'mdc-test-level.txt').write_text(f'{level}\n')
     if args.mode == 'capacity':
         (stage / 'mdc-benchmark-frames.txt').write_text(f'{args.frames}\n')
@@ -110,7 +116,7 @@ for level, game in cases:
                                   int(r['underrun_frames']) == 0 and
                                   int(r['work_p99_us']) <= 12500 for r in results)
     else:
-        complete = 'BENCH complete;' in contents and {r['game'] for r in results} == {'coi', 'qs', 'woi'}
+        complete = 'BENCH complete;' in contents and {r['game'] for r in results} == set(games)
         passed = complete and all(float(r['fps']) >= 80 and int(r['p99_us']) <= 12500 for r in results)
     summary['cases'].append({'level_entry': level, 'game': game, 'complete': complete, 'budget_pass': passed, 'results': results})
     failed |= not passed

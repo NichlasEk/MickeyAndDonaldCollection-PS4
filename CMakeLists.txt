@@ -25,6 +25,8 @@ add_library(mdcore STATIC
     src/game/coi.cpp
     src/game/qs.cpp
     src/game/woi.cpp
+    src/game/lion.cpp
+    src/game/aladdin.cpp
 )
 target_include_directories(mdcore PUBLIC src)
 
@@ -38,6 +40,9 @@ if(MDC_PS4 OR MDC_HEADLESS)
         add_subdirectory(platform/ps4)
     else()
         enable_testing()
+        set_target_properties(mdcore PROPERTIES POSITION_INDEPENDENT_CODE ON)
+        add_library(mdtool SHARED src/tools/mdtool.cpp)
+        target_link_libraries(mdtool PRIVATE mdcore)
         foreach(cpu m68k z80)
             add_executable(${cpu}_test tests/${cpu}_test.cpp)
             target_link_libraries(${cpu}_test PRIVATE mdcore)

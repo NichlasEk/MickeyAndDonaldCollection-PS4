@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+constexpr int kPS4GameCount=5;
 struct PS4GameEntry {
     bool ready=false;
     bool saved=false;
@@ -11,4 +12,4 @@ struct PS4GameEntry {
 };
 // Original bitmap UI, rendered through the existing native Vulkan presenter.
 void ps4_draw_launcher(std::vector<uint32_t>& pixels, int selected, int active,
-                       const std::array<PS4GameEntry,3>& games, const std::string& message);
+                       const std::array<PS4GameEntry,kPS4GameCount>& games, const std::string& message);

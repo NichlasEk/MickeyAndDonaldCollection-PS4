@@ -37,26 +37,26 @@ void text(std::vector<uint32_t>& p,int x,int y,const std::string& str,uint32_t c
 }
 }
 void ps4_draw_launcher(std::vector<uint32_t>& p,int selected,int active,
-                       const std::array<PS4GameEntry,3>& games,const std::string& message) {
+                       const std::array<PS4GameEntry,kPS4GameCount>& games,const std::string& message) {
     p.resize(W*H);
     for(int y=0;y<H;++y) for(int x=0;x<W;++x)
         p[y*W+x]=0xff000000u|uint32_t(10+y/32)<<16|uint32_t(16+y/20)<<8|uint32_t(32+y/12);
     text(p,18,14,"MICKEY & DONALD",0xffffd580,2);
     text(p,19,33,"COLLECTION / GAME LIBRARY",0xffa6bdd4);
     text(p,356,18,"PS4",0xffa6bdd4);
-    const char* titles[]={"CASTLE OF ILLUSION","QUACKSHOT","WORLD OF ILLUSION"};
-    const char* subtitles[]={"MICKEY MOUSE","DONALD DUCK","MICKEY MOUSE AND DONALD DUCK"};
-    for(int i=0;i<3;++i) {
-        int y=51+i*43; bool chosen=selected==i;
+    const char* titles[]={"CASTLE OF ILLUSION","QUACKSHOT","WORLD OF ILLUSION","THE LION KING","ALADDIN - FINAL CUT"};
+    const char* subtitles[]={"MICKEY MOUSE","DONALD DUCK","MICKEY MOUSE AND DONALD DUCK","SIMBA","ALADDIN-REMIX"};
+    for(int i=0;i<kPS4GameCount;++i) {
+        int y=47+i*27; bool chosen=selected==i;
         uint32_t accent=chosen?0xffffd580:0xff36506c;
-        rect(p,16,y,368,39,accent); rect(p,17,y+1,366,37,chosen?0xff263c57:0xff15273d);
-        rect(p,24,y+9,21,21,accent);
-        text(p,32,y+16,std::to_string(i+1),chosen?0xff18283c:0xffc7d9e9);
-        text(p,54,y+8,titles[i],chosen?0xffffe3ab:0xffe4ecf4);
-        text(p,54,y+24,subtitles[i],0xff91a9c3);
-        if(games[i].saved) text(p,346,y+24,"SAVE",0xff8edcaa);
+        rect(p,16,y,368,25,accent); rect(p,17,y+1,366,23,chosen?0xff263c57:0xff15273d);
+        rect(p,24,y+4,17,17,accent);
+        text(p,30,y+9,std::to_string(i+1),chosen?0xff18283c:0xffc7d9e9);
+        text(p,54,y+4,titles[i],chosen?0xffffe3ab:0xffe4ecf4);
+        text(p,54,y+15,subtitles[i],0xff91a9c3);
+        if(games[i].saved) text(p,346,y+15,"SAVE",0xff8edcaa);
         std::string status=active==i?"PAUSED":games[i].source;
-        text(p,376-int(status.size())*6,y+8,status,games[i].ready?0xff8edcaa:0xffee967d);
+        text(p,376-int(status.size())*6,y+4,status,games[i].ready?0xff8edcaa:0xffee967d);
     }
     text(p,18,185,message.empty()?"SELECT A GAME - HDD FIRST / USB FALLBACK":message,0xffb9cddd);
     text(p,18,201,"X PLAY  O BACK  SQUARE RESTART  TRIANGLE SCAN",0xffffd580);

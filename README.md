@@ -4,7 +4,9 @@ OpenOrbis/Vulkan port of [Darhkfox's collection](https://github.com/Darhkfox/Mic
 The original MIT license and attribution are retained. This uses Mega Drive
 emulation plus per-game ROM patches; it is not a native decompilation of the games.
 
-The PS4 runner loads all three supported games, renders through native Vulkan,
+This research branch adds The Lion King and Aladdin Final Cut with experimental
+400×224 widescreen; see [implementation and test limits](docs/re_new_games_wide.md).
+The PS4 runner loads all five supported games, renders through native Vulkan,
 and feeds 48 kHz stereo to AudioOut. Version 0.03 has been tested successfully by the user on a physical PS4 with Castle of Illusion. The 0.05 launcher with persistent save/load awaits console testing. Current
 desktop shadPS4 tests reach about 60 fps. A separate native offscreen test
 measures CPU, audio mixing and GPU completion with an 80 fps capacity target.
@@ -13,7 +15,7 @@ measured physical-console performance remain unverified. No ROMs are distributed
 
 See [PS4 build instructions, controls, ROM paths and test limits](docs/PS4.md).
 The instructions and feature list below describe the upstream PC/Android edition;
-the PS4 runner has its own three-game launcher, but does not yet include upstream settings or two-player UI. PS4 saves use one HDD slot per game; open the launcher with L1/touchpad, then R1 saves and L1 loads.
+the PS4 runner has its own five-game launcher, but does not yet include upstream settings or two-player UI. PS4 saves use one HDD slot per game; open the launcher with L1/touchpad, then R1 saves and L1 loads.
 
 ## Upstream PC and Android edition
 

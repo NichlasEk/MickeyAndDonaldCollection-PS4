@@ -21,6 +21,7 @@ WOI = os.path.join(ROOT, 'World of Illusion Starring Mickey Mouse and Donald Duc
 # (build/tools) has the real sound chips. Set MDTOOL_DLL to choose explicitly.
 _DLL_CANDIDATES = [
     os.environ.get('MDTOOL_DLL', ''),
+    os.path.join(ROOT, 'build', 'host', 'libmdtool.so'),
     os.path.join(ROOT, 'tools', 'bin', 'mdtool.dll'),
     os.path.join(ROOT, 'build', 'tools', 'mdtool.dll'),
 ]
@@ -97,7 +98,7 @@ if hasattr(_dll, 'mdt_view_b'):
 
 class MD:
     def __init__(self, rom=COI):
-        self.h = _dll.mdt_create(rom.encode('mbcs'))
+        self.h = _dll.mdt_create(rom.encode('mbcs') if os.name == 'nt' else os.fsencode(rom))
         if not self.h:
             raise RuntimeError('failed to load ' + rom)
         self.rom_path = rom
@@ -213,7 +214,7 @@ class MD:
 
     def png(self, path, scale=2):
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-        return _dll.mdt_save_png(self.h, path.encode('mbcs'), scale)
+        return _dll.mdt_save_png(self.h, path.encode('mbcs') if os.name == 'nt' else os.fsencode(path), scale)
 
     def debug_layers(self, mask):
         """Test only: render just these layers (bit 0 plane A, bit 1 plane B, bit 2 sprites)."""

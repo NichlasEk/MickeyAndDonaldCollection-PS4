@@ -7,6 +7,8 @@ EXPECTED = {
     0xBA4E9FD0: ('coi', 524288, 'Castle of Illusion'),
     0x88C8DD94: ('qs', 524288, 'QuackShot'),
     0x921EBD1C: ('woi', 1048576, 'World of Illusion'),
+    0x5696A5BC: ('lion', 3145728, 'The Lion King'),
+    0xDD66B3FA: ('aladdin', 2384052, 'Aladdin Final Cut'),
 }
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('directory', nargs='?', type=Path, default=Path(__file__).resolve().parents[1] / 'roms')
@@ -15,8 +17,8 @@ found = set()
 for path in sorted(a.directory.iterdir()):
     if not path.is_file() or path.suffix.lower() not in ('.bin', '.md', '.gen'):
         continue
-    if path.stat().st_size > 1048576:
-        print(f'UNSUPPORTED {path.name}: expected a raw ROM of 512 KiB or 1 MiB')
+    if path.stat().st_size > 4194304:
+        print(f'UNSUPPORTED {path.name}: raw ROM exceeds 4 MiB')
         continue
     data = path.read_bytes()
     crc = zlib.crc32(data)
@@ -29,4 +31,4 @@ for path in sorted(a.directory.iterdir()):
 for crc, (key, size, title) in EXPECTED.items():
     if key not in found:
         print(f'MISSING {key}: {title}, {size} bytes, CRC32={crc:08X}')
-raise SystemExit(0 if len(found) == 3 else 1)
+raise SystemExit(0 if len(found) == len(EXPECTED) else 1)

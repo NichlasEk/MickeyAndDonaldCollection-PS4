@@ -56,7 +56,8 @@ struct Pad {
         return md;
     }
 };
-const char* ids[]={"coi","qs","woi"};
+const char* ids[]={"coi","qs","woi","lion","aladdin"};
+static_assert(sizeof(ids)/sizeof(ids[0])==kPS4GameCount,"launcher catalog");
 std::string state_path(int i) { return std::string("/data/mickey-donald/saves/")+ids[i]+".state"; }
 void save_dirs() {
     for(const char* p:{"/data/mickey-donald","/data/mickey-donald/saves"})
@@ -65,9 +66,9 @@ void save_dirs() {
 const char* rom_roots[]={"/data/mickey-donald/roms",
     "/mnt/usb0/mickey-donald/roms","/mnt/usb1/mickey-donald/roms",
     "/mnt/usb2/mickey-donald/roms","/mnt/usb3/mickey-donald/roms","/app0/roms"};
-std::array<PS4GameEntry,3> scan_games() {
-    std::array<PS4GameEntry,3> games;
-    for(int i=0;i<3;++i) for(const char* root:rom_roots) {
+std::array<PS4GameEntry,kPS4GameCount> scan_games() {
+    std::array<PS4GameEntry,kPS4GameCount> games;
+    for(int i=0;i<kPS4GameCount;++i) for(const char* root:rom_roots) {
         auto& entry=games[i];
         std::string path=std::string(root)+"/"+ids[i]+".bin";
         FILE* probe=std::fopen(path.c_str(),"rb");
@@ -82,7 +83,7 @@ std::array<PS4GameEntry,3> scan_games() {
         // Match the loader: a wrong high-priority ROM is reported, not hidden.
         break;
     }
-    for(int i=0;i<3;++i) games[i].saved=ps4_state_exists(state_path(i));
+    for(int i=0;i<kPS4GameCount;++i) games[i].saved=ps4_state_exists(state_path(i));
     note("Launcher ROM scan complete");
     return games;
 }
@@ -112,7 +113,7 @@ void benchmark(int frames) {
     PS4Video video(true);
     vk_ps4_log_close();
     note("BENCHMARK: private 1280x720 target, complete GPU fence per frame; AudioOut and display excluded");
-    for(int game=0;game<3;++game) {
+    for(int game=0;game<kPS4GameCount;++game) {
         std::unique_ptr<GameModule> module;
         auto session=open_game(game,module);
         if(!session) continue;
@@ -145,7 +146,7 @@ void benchmark(int frames) {
 }
 int main() {
     report=std::fopen("/data/mickey-donald-ps4.log","w");
-    note("Mickey & Donald PS4 0.05: native Vulkan + 48000 Hz stereo AudioOut");
+    note("Mickey & Donald PS4 0.06 research: native Vulkan + 48000 Hz stereo AudioOut");
     try {
         vk_ps4_log_open("/data/mickey-donald-vulkan.log");
         if(FILE* fixture=std::fopen("/app0/mdc-benchmark-frames.txt","r")) {
@@ -176,7 +177,7 @@ int main() {
         // Explicit local performance fixtures bypass the launcher, never PKGs.
         if(FILE* fixture=std::fopen("/app0/mdc-test-level.txt","r")) {
             std::fclose(fixture);
-            for(int i=0;i<3 && !session;++i) { selected=i; session=open_game(i,module); }
+            for(int i=0;i<kPS4GameCount && !session;++i) { selected=i; session=open_game(i,module); }
             if(!session) throw std::runtime_error("Test fixture has no valid ROM");
             active=selected; in_menu=false;
         }
@@ -223,8 +224,8 @@ int main() {
                         note("State loaded from HDD");
                     } catch(const std::exception& e) { note(e.what()); menu_message="LOAD FAILED - CURRENT GAME RETAINED"; }
                 }
-                if(pad.pressed&ORBIS_PAD_BUTTON_UP) { selected=(selected+2)%3; menu_message.clear(); }
-                if(pad.pressed&ORBIS_PAD_BUTTON_DOWN) { selected=(selected+1)%3; menu_message.clear(); }
+                if(pad.pressed&ORBIS_PAD_BUTTON_UP) { selected=(selected+kPS4GameCount-1)%kPS4GameCount; menu_message.clear(); }
+                if(pad.pressed&ORBIS_PAD_BUTTON_DOWN) { selected=(selected+1)%kPS4GameCount; menu_message.clear(); }
                 if(pad.pressed&ORBIS_PAD_BUTTON_TRIANGLE) { games=scan_games(); menu_message="ROM LIST UPDATED"; }
                 if(session && (pad.pressed&(ORBIS_PAD_BUTTON_CIRCLE|ORBIS_PAD_BUTTON_TOUCH_PAD))) {
                     in_menu=false; selected=active; menu_message.clear();

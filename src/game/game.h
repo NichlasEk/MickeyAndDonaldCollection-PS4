@@ -92,4 +92,6 @@ public:
 GameModule* create_coi_module();
 GameModule* create_qs_module();
 GameModule* create_woi_module();
+GameModule* create_lion_module();
+GameModule* create_aladdin_module();
 constexpr int kGameCount = 3;

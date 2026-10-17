@@ -1,3 +1,36 @@
+# Current research branch — 2026-10-17
+
+Current branch: `ps4/widescreen-aladdin-lion`, based on stable `2151947`.
+See [widescreen research](re_new_games_wide.md) for exact ROM identities,
+implementation, reproducer and limitations. Five-game PS4 menu and separate
+save slots are implemented. Both new games passed shadPS4 menu/start/save/load.
+All 21 level entries booted; Stampede intentionally retains original width.
+The unpatched comparison has one known Elephant Graveyard trajectory difference
+caused by widened sprite submission. Rendering-width checks use identical
+patches to isolate this variable; see the research document before acceptance. All five host suites and all five ROM smokes pass,
+including fresh-session disk-state replay. Original three smoke hashes unchanged.
+
+Version 0.06 is a research executable only; no 0.06 PKG/FTP delivery was made.
+Stable 0.05 and the default branch remain separate. ROMs and evidence stay local.
+Native capacity tests: `build/performance/20261017T093445-714838Z/results.json`;
+all six cases (entries 0/4/9 in both games) passed: 280.54–328.41 fps,
+worst p99 4861 us, worst single frame 6622 us. This excludes AudioOut/VideoOut.
+Private host oracle: `build/widescreen-r3/results.json`; UI log:
+`build/sidequest/native-menu.log`. No new physical-console validation.
+
+Normal display tests also passed all six cases at 60.00–60.42 fps, zero audio
+underruns, work p99 <= 9491 us; evidence:
+`build/performance/20261017T093621-282837Z/results.json`.
+Performance EBOOT SHA-256: `086b4a38931d8606ac4df0ee61251ed1c4478cf54b7f9d301d4dc51d5073fc23`.
+Final EBOOT adds the Aladdin 16-pixel left guard-column mask:
+`222cde217ac96f6308c36b5aab1a363789fd29e7b57f1d5d6a5fc88bcacc3298`.
+All 21 same-patch rendering-width cases passed in r3; final Aladdin rerun is
+`build/widescreen-r4/results.json` (11/11 pass). Final Aladdin display retest:
+`build/performance/20261017T094211-597763Z/results.json`, PASS at 60.02 fps
+settled, zero underruns, p99 <= 7963 us.
+
+The following is historical stable-port evidence, not the research release:
+
 # PS4 attempt — 2026-10-17
 
 Repository moved out of ScummVM-PS4 to a sibling `MickeyAndDonaldCollection/`.

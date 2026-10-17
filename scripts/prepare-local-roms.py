@@ -4,14 +4,15 @@ import hashlib
 from pathlib import Path
 import zlib
 root = Path(__file__).resolve().parents[1]
-expected = {0xBA4E9FD0: ('coi', 524288), 0x88C8DD94: ('qs', 524288), 0x921EBD1C: ('woi', 1048576)}
+expected = {0xBA4E9FD0: ('coi', 524288), 0x88C8DD94: ('qs', 524288), 0x921EBD1C: ('woi', 1048576),
+            0x5696A5BC: ('lion', 3145728), 0xDD66B3FA: ('aladdin', 2384052)}
 out = root / 'build/local-roms'
 out.mkdir(parents=True, exist_ok=True)
 found = set()
 for source in sorted((root / 'roms').iterdir()):
     if not source.is_file() or source.suffix.lower() not in ('.bin', '.md', '.gen'):
         continue
-    if source.stat().st_size not in (524288, 1048576): continue
+    if source.stat().st_size not in {spec[1] for spec in expected.values()}: continue
     data = source.read_bytes()
     spec = expected.get(zlib.crc32(data))
     if not spec or len(data) != spec[1]: continue
@@ -24,5 +25,5 @@ for source in sorted((root / 'roms').iterdir()):
     assert hashlib.sha256(target.read_bytes()).digest() == hashlib.sha256(data).digest()
     found.add(key)
     print(f'OK {key}: {target} (local only; excluded from packages and Git)')
-if len(found) != 3: print('Missing: ' + ', '.join(sorted({'coi', 'qs', 'woi'} - found)))
+if len(found) != len(expected): print('Missing: ' + ', '.join(sorted({s[0] for s in expected.values()} - found)))
 raise SystemExit(0 if found else 1)

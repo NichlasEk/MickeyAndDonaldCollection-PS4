@@ -11,7 +11,11 @@
 #include <fstream>
 #include <iterator>
 
+#ifdef _WIN32
 #define API extern "C" __declspec(dllexport)
+#else
+#define API extern "C" __attribute__((visibility("default")))
+#endif
 
 namespace {
 struct BpHit { uint32_t frame, pc, sr, pad; uint32_t regs[16]; };
@@ -302,6 +306,8 @@ API int mdt_module_create(void* h, const char* id) {
     if (s == "coi") t->module.reset(create_coi_module());
     else if (s == "qs") t->module.reset(create_qs_module());
     else if (s == "woi") t->module.reset(create_woi_module());
+    else if (s == "lion") t->module.reset(create_lion_module());
+    else if (s == "aladdin") t->module.reset(create_aladdin_module());
     else return 0;
     return 1;
 }
@@ -374,3 +380,10 @@ API void mdt_module_jukebox_boot(void* h) { Tool* t = (Tool*)h; if (t->module) t
 API void mdt_module_jukebox_frame(void* h) { Tool* t = (Tool*)h; if (t->module) t->module->jukebox_frame(t->md); }
 API void mdt_module_play(void* h, int id) { Tool* t = (Tool*)h; if (t->module) t->module->play_sound(t->md, id); }
 API void mdt_module_stop(void* h) { Tool* t = (Tool*)h; if (t->module) t->module->stop_sound(t->md); }
+
+// Redraw a frozen VDP snapshot for independent pixel-oracle comparisons.
+// No CPU, audio clock or game frame is advanced.
+API void mdt_render_only(void* h) {
+    auto& v = ((Tool*)h)->md.vdp;
+    for (int y=0;y<v.active_lines();++y) v.render_line(y);
+}

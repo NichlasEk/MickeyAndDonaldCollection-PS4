@@ -11,7 +11,7 @@ inline std::unique_ptr<GameModule> identify_rom(const std::vector<uint8_t>& rom)
     }
     crc = ~crc;
     using Factory = GameModule*(*)();
-    for (Factory make : {create_coi_module, create_qs_module, create_woi_module}) {
+    for (Factory make : {create_coi_module, create_qs_module, create_woi_module, create_lion_module, create_aladdin_module}) {
         std::unique_ptr<GameModule> module(make());
         if (module->rom_size() == rom.size() && module->rom_crc32() == crc) return module;
     }
@@ -22,7 +22,7 @@ inline std::vector<uint8_t> load_rom_file(const char* path) {
     if (!f) throw std::runtime_error(std::string("Cannot open ROM: ") + path);
     if (std::fseek(f.get(), 0, SEEK_END)) throw std::runtime_error("ROM seek failed");
     long size = std::ftell(f.get());
-    if (size != 524288 && size != 1048576) throw std::runtime_error("Expected raw 512 KiB or 1 MiB ROM");
+    if (size < 512 || size > 4*1024*1024 || (size & 1)) throw std::runtime_error("Expected raw Mega Drive ROM, 512 bytes to 4 MiB");
     std::rewind(f.get());
     std::vector<uint8_t> rom(static_cast<size_t>(size));
     if (std::fread(rom.data(), 1, rom.size(), f.get()) != rom.size()) throw std::runtime_error("ROM read failed");

@@ -5,7 +5,7 @@ frontends are unchanged. This is not yet a complete console edition.
 
 ## Current behavior
 
-- Reuses the original CPU/VDP/audio cores, all three game modules, Session,
+- Reuses the original CPU/VDP/audio cores, the three original and two experimental game modules, Session,
   palette conversion and 16:9 patches.
 - Presents a CPU-rendered frame using a host-visible linear RGBA texture and a
   Vulkan textured quad at 1280x720. Preserves square-pixel aspect ratio.
@@ -15,7 +15,9 @@ frontends are unchanged. This is not yet a complete console edition.
   until a later flip retires an image before rendering into it again. This avoids
   the local ICD's shared semaphore epilogue-buffer reuse bug and redundant idle
   waits. The adapter targets this specific ICD, not arbitrary Vulkan drivers.
-- Starts in a three-game launcher: Castle of Illusion, QuackShot, World of Illusion.
+- Starts in a five-game launcher: Castle of Illusion, QuackShot, World of Illusion,
+  The Lion King and Aladdin Final Cut. The latter two are research-branch additions;
+  see [widescreen findings and limitations](re_new_games_wide.md).
   D-pad / left stick selects; Cross starts or resumes, Square requests a confirmed restart,
   Circle returns to the paused game, Triangle rescans ROMs.
 - L1 or touchpad opens the launcher during gameplay and pauses the current game.
@@ -66,6 +68,8 @@ The second command makes verified copies under ignored `build/local-roms/`:
 | `coi.bin` | Castle of Illusion | 524288 | BA4E9FD0 |
 | `qs.bin` | QuackShot | 524288 | 88C8DD94 |
 | `woi.bin` | World of Illusion | 1048576 | 921EBD1C |
+| `lion.bin` | The Lion King (UEJ) | 3145728 | 5696A5BC |
+| `aladdin.bin` | Aladdin Final Cut / ALADDIN-REMIX | 2384052 | DD66B3FA |
 
 On a PS4, copy these files to `/data/mickey-donald/roms/` (HDD, checked first).
 For USB fallback, put `mickey-donald/roms/` at the root of the USB drive. The
