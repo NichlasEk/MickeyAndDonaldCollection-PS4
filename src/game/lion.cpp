@@ -85,7 +85,10 @@ public:
  }
  bool can_configure(const MegaDrive& md,const GameConfig& c) const override {(void)c;return patches_safe(md,{});}
  void post_frame(MegaDrive& md,const GameConfig& c,FrameInfo& f) override {
-    (void)md;(void)c;f.gameplay=view.gameplay;f.mask_left=view.left;f.mask_right=view.right;
+    (void)md;(void)c;f.gameplay=view.gameplay;
+  // Keep the visible image centred at either level boundary. Session eases
+  // both masks open together as the camera moves into the level.
+  f.mask_left=f.mask_right=std::max(view.left,view.right);
  }
 };
 }

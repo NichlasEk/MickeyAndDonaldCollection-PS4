@@ -134,3 +134,13 @@ zero underruns, worst p99 7.963 ms;
 Native visual captures (private): `build/ps4/lion-widescreen-native.png` and
 `build/ps4/aladdin-widescreen-native.png`. These Xvfb captures are visual evidence,
 not pacing measurements.
+
+## Real scanout regression: Aladdin busy flag
+
+The frozen map oracle missed an active-scanout issue: FF7E2E clears during the
+game main loop. Rechecking it on each line stopped extension reconstruction
+partway through a frame. Aladdin now latches gameplay at line zero for the full
+frame. `python3 tools/re/aladdin_scanout_verify.py` exercises CPU-driven scanout
+and a stationary foreground redraw, from a reproducible ROM boot sequence.
+An optional `--state` accepts a private raw core snapshot. The former library
+fails this regression, while the corrected library has zero differing pixels.

@@ -87,6 +87,45 @@ std::array<PS4GameEntry,kPS4GameCount> scan_games() {
     note("Launcher ROM scan complete");
     return games;
 }
+// Thumbnails are generated from an isolated session, never from a player's save.
+// Cache contains only pixels and is rebuilt when absent or malformed.
+void prepare_previews(std::array<PS4GameEntry,kPS4GameCount>& games,PS4Video& video) {
+    std::vector<uint32_t> loading;
+    mkdir("/data/mickey-donald",0777);
+    mkdir("/data/mickey-donald/previews",0777);
+    for(int i=0;i<kPS4GameCount;++i) {
+        auto& game=games[i]; if(!game.ready || !game.preview.empty())continue;
+        std::string cache=std::string("/data/mickey-donald/previews/")+ids[i]+(i>=3?"-v2.bgra":"-v1.bgra");
+        game.preview.resize(320*180);
+        if(FILE* f=std::fopen(cache.c_str(),"rb")) {
+            bool ok=std::fread(game.preview.data(),4,320*180,f)==320*180 && std::fgetc(f)==EOF;
+            std::fclose(f); if(ok)continue;
+        }
+        game.preview.clear();
+        ps4_draw_launcher(loading,i,-1,games,"PREPARING GAME PREVIEW - FIRST VISIT");
+        video.present(loading.data(),kLauncherWidth,kLauncherHeight);
+        try {
+            auto rom=load_rom_file(game.path.c_str()); auto module=identify_rom(rom);
+            Session preview;
+            if(!preview.open(module.get(),rom))continue;
+            Settings settings; preview.apply_settings(settings);
+            if(!preview.start_level(0,0))continue;
+            for(int f=0;f<45;++f)preview.run_frame(0,0);
+            int w,h; const uint32_t* frame=preview.frame(w,h);
+            game.preview.assign(320*180,0xff080d17);
+            int dw=320,dh=h*dw/w; if(dh>180){dh=180;dw=w*dh/h;}
+            for(int y=0;y<dh;++y)for(int x=0;x<dw;++x)
+                game.preview[(y+(180-dh)/2)*320+x+(320-dw)/2]=frame[(y*h/dh)*w+x*w/dw];
+            std::string temporary=cache+".tmp";
+            if(FILE* f=std::fopen(temporary.c_str(),"wb")) {
+                bool ok=std::fwrite(game.preview.data(),4,320*180,f)==320*180;
+                if(std::fclose(f)!=0)ok=false;
+                if(ok)std::rename(temporary.c_str(),cache.c_str()); else std::remove(temporary.c_str());
+            }
+            note((std::string("Preview ready: ")+ids[i]).c_str());
+        } catch(const std::exception& e) {game.preview.clear();note(e.what());}
+    }
+}
 std::unique_ptr<Session> open_game(int index,std::unique_ptr<GameModule>& module) {
     for(const char* root:rom_roots) {
         std::string path=std::string(root)+"/"+ids[index]+".bin";
@@ -146,7 +185,7 @@ void benchmark(int frames) {
 }
 int main() {
     report=std::fopen("/data/mickey-donald-ps4.log","w");
-    note("Mickey & Donald PS4 0.06 research: native Vulkan + 48000 Hz stereo AudioOut");
+    note("Mickey & Donald PS4 0.07: native Vulkan + 48000 Hz stereo AudioOut");
     try {
         vk_ps4_log_open("/data/mickey-donald-vulkan.log");
         if(FILE* fixture=std::fopen("/app0/mdc-benchmark-frames.txt","r")) {
@@ -172,6 +211,7 @@ int main() {
         int selected=0, active=-1;
         bool in_menu=true, restart_confirm=false;
         auto games=scan_games();
+        prepare_previews(games,video);
         std::string menu_message;
         std::vector<uint32_t> menu_pixels;
         // Explicit local performance fixtures bypass the launcher, never PKGs.
@@ -224,9 +264,9 @@ int main() {
                         note("State loaded from HDD");
                     } catch(const std::exception& e) { note(e.what()); menu_message="LOAD FAILED - CURRENT GAME RETAINED"; }
                 }
-                if(pad.pressed&ORBIS_PAD_BUTTON_UP) { selected=(selected+kPS4GameCount-1)%kPS4GameCount; menu_message.clear(); }
-                if(pad.pressed&ORBIS_PAD_BUTTON_DOWN) { selected=(selected+1)%kPS4GameCount; menu_message.clear(); }
-                if(pad.pressed&ORBIS_PAD_BUTTON_TRIANGLE) { games=scan_games(); menu_message="ROM LIST UPDATED"; }
+                if(pad.pressed&(ORBIS_PAD_BUTTON_UP|ORBIS_PAD_BUTTON_LEFT)) { selected=(selected+kPS4GameCount-1)%kPS4GameCount; menu_message.clear(); }
+                if(pad.pressed&(ORBIS_PAD_BUTTON_DOWN|ORBIS_PAD_BUTTON_RIGHT)) { selected=(selected+1)%kPS4GameCount; menu_message.clear(); }
+                if(pad.pressed&ORBIS_PAD_BUTTON_TRIANGLE) { games=scan_games(); prepare_previews(games,video); menu_message="ROM LIST UPDATED"; }
                 if(session && (pad.pressed&(ORBIS_PAD_BUTTON_CIRCLE|ORBIS_PAD_BUTTON_TOUCH_PAD))) {
                     in_menu=false; selected=active; menu_message.clear();
                 } else if(pad.pressed&(ORBIS_PAD_BUTTON_CROSS|ORBIS_PAD_BUTTON_SQUARE)) {
@@ -250,7 +290,7 @@ int main() {
             }
             if(in_menu) {
                 ps4_draw_launcher(menu_pixels,selected,active,games,menu_message);
-                video.present(menu_pixels.data(),400,224);
+                video.present(menu_pixels.data(),kLauncherWidth,kLauncherHeight);
                 // Menu/loading time must not contaminate gameplay timing windows.
                 window=0; emulated_base=emulated; start=sceKernelGetProcessTime();
                 flip_total=0; repeated=catchup_frames=0; stages.fill(0);

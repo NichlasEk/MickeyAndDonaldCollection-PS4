@@ -15,7 +15,7 @@ void check(VkResult r, const char* operation) {
     if (r != VK_SUCCESS) throw std::runtime_error(std::string(operation) + ": " + std::to_string(r));
 }
 #define VK(call) check((call), #call)
-constexpr unsigned screen_w = 1280, screen_h = 720, tex_w = 640, tex_h = 240;
+constexpr unsigned screen_w = 1280, screen_h = 720, tex_w = 1024, tex_h = 512;
 struct Vertex { float x,y,u,v; };
 }
 struct PS4Video::Impl {

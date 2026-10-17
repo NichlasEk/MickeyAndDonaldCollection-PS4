@@ -1,3 +1,95 @@
+# Latest local fix: Aladdin clipped foreground extensions
+
+User supplied an exact native save showing chopped coals and bazaar artwork.
+Tracing the real scanout shows FF7E2E is FF at line zero but clears by line 24
+while the game main loop executes. The per-line playing() guard then skipped
+foreground reconstruction for the remaining scanlines, exposing stale streamed
+nametable columns. A frozen redraw concealed the bug by using the end-of-frame
+flag throughout. The hook now uses the gameplay decision latched at line zero.
+CPU, ROM patches, camera, original centre and save format are unchanged.
+
+New regression: `tools/re/aladdin_scanout_verify.py` compares real foreground
+scanout with frozen redraw during a settled stationary scene. Reproducible from
+ROM boot or a private core state. User state: old 90899 edge pixel differences
+over 60 frames, fixed zero; centre zero in both. Boot fixture: old 186709 edge
+pixel differences, fixed zero, centre zero. Existing 11-level Aladdin matrix
+(120 frames each) and all six host suites pass. Native saved-state load/resume
+and capture pass in isolated shadPS4 (`build/aladdin-edge/native-fixed/`).
+Private evidence and user state remain under ignored `build/aladdin-edge/`.
+EBOOT SHA-256: `34fbf6f9486986b9e06561f5f90d00c049bbd4ed8834ef6562c60ffc0a575358`.
+This fix is not packaged/FTP-delivered or physically verified. Version string
+still 0.07; uploaded 0.07 below predates this fix. User's visible emulator also
+still runs its earlier copied executable; do not mistake it for the fixed build.
+
+# Latest delivery: 0.07 centred level boundaries
+
+Package uploaded to `192.168.32.229:2121` at
+`/data/pkg/MickeyDonald-PS4-0.07-Test.pkg` with manifest and checksum sidecar.
+SHA-256: `34044ccccca68fb078f67361e1324a89b536e92768b3f069ebb32a4aef5d4907`.
+EBOOT SHA-256: `0da8316f5e66cf9e9976fe5ee86d7c9f5d2e2134fa9f8d90f9642f17da90c631`.
+Only the version log changed after the boundary-fix build; native rebuild and
+PkgTool validation passed. All nine extracted filesystem payloads match the
+manifest and runtime EBOOT. All three FTP uploads were read back and verified
+before rename. Evidence: `build/centred-edges-007-ftp.json`.
+All five ROMs were already on HDD; no ROMs are bundled or retransferred.
+Existing saves are retained and compatible. Physical installation/test pending.
+
+# Latest local fix: centred level boundaries
+
+Lion and Aladdin now report equal left/right presentation masks using the larger
+level-boundary mask. This hides the opposite extension temporarily instead of
+leaving the image visibly lopsided. The Session's existing easing opens both
+sides together when the camera scrolls into the level. Original central pixels,
+ROM patches and camera/game timing are unchanged. Stampede stays original width.
+The two games use thumbnail cache v2 to regenerate their launch-card images.
+
+All 21 level-entry checks passed (120 frames each), including unchanged centre
+pixels, extension oracle, state replay and symmetric masks.
+Both 300-frame Session-level checks passed: matching black side bands at the
+start, full widescreen after scrolling. Captures and private check are under
+`build/centred-edges/`. Six host CTest suites pass. PS4 EBOOT built:
+`216664974024e291b532ea5a20fbc768f6fa19702189d1880c25c6eceb2007ad`.
+This fix is included in the 0.07 delivery above; physical verification is pending.
+The previous 0.06 package below still has asymmetric boundary masks.
+
+# Latest delivery: 0.06 carousel package
+
+Uploaded to `192.168.32.229:2121` as
+`/data/pkg/MickeyDonald-PS4-0.06-Test.pkg`, with manifest and SHA-256 sidecar.
+Package SHA-256: `8b8a9070338da8aeccdad3815120ee0762048fe143d69b4087cce860e2e59747`.
+PkgTool validation passed; all nine extracted filesystem payloads match the
+manifest, including the tested carousel EBOOT. Metadata/icon are covered by
+package validation. Package contains no ROMs.
+Lion and Aladdin were missing remotely and transferred separately to
+`/data/mickey-donald/roms/{lion,aladdin}.bin`. All five uploaded files were read
+back over FTP and SHA-256 verified before renaming into place.
+Evidence: `build/carousel-ftp.json`, `build/carousel-package.log`.
+Installation and physical-console testing remain pending. First launch generates
+local thumbnail caches and can take longer. Source changes remain local.
+
+# Latest: carousel launcher (local review)
+
+The launcher now renders at 800x448 with a wrapping, animated horizontal
+carousel, game screenshots, per-game accents and save/paused status. Left/right
+and the previous up/down controls browse. Existing play, save/load and restart
+confirmation controls are retained. Presenter texture capacity is 1024x512;
+gameplay resolution is unchanged.
+
+First launch generates five thumbnails using isolated Sessions and level entry
+zero from the verified local ROMs. This can take time; a preparation screen is
+shown per game. Pixel-only 320x180 caches live under
+`/data/mickey-donald/previews/<id>-v1.bgra`, outside save slots. Missing or
+wrong-sized caches are regenerated; unavailable ROMs get a placeholder. No game
+images or ROMs are embedded in source or package. Delete the cache to regenerate.
+
+Native build and six existing host CTest suites pass. Isolated shadPS4 verified
+all five generated previews, wrap from Castle to Aladdin and back, and Lion plus
+Aladdin start/save/load/resume. Evidence: `build/carousel-native.log`,
+`build/ps4/launcher-carousel-*.png`. Visual inspection passed. A separate visible
+instance was opened for user review (`build/carousel-visible/pid`).
+EBOOT SHA-256: `911f678e0dfaecd7874f9a6f86b4ea122ae130500331f428e171cdd9816d5027`.
+No new PKG, FTP delivery or physical PS4 verification. Changes currently local.
+
 # Latest: Lion side sprites no longer alter emulated timing
 
 The remaining Elephant Graveyard timing issue is fixed in the 1200- and

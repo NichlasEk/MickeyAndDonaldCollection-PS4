@@ -1,8 +1,10 @@
 #include "launcher.h"
 #include <algorithm>
 #include <cstring>
+#include <cmath>
+#include <chrono>
 namespace {
-constexpr int W=400,H=224;
+constexpr int W=kLauncherWidth,H=kLauncherHeight;
 const char chars[]="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/:.?&";
 const uint8_t glyphs[][7]={
  {14,17,17,31,17,17,17},{30,17,17,30,17,17,30},{14,17,16,16,16,17,14},
@@ -26,7 +28,7 @@ void rect(std::vector<uint32_t>& p,int x,int y,int w,int h,uint32_t c) {
     for(int yy=std::max(0,y);yy<std::min(H,y+h);++yy)
         for(int xx=std::max(0,x);xx<std::min(W,x+w);++xx) p[yy*W+xx]=c;
 }
-void text(std::vector<uint32_t>& p,int x,int y,const std::string& str,uint32_t c,int scale=1) {
+void text(std::vector<uint32_t>& p,int x,int y,const std::string& str,uint32_t c,int scale=2) {
     for(unsigned char ch:str) {
         if(ch>='a' && ch<='z') ch-=32;
         const char* at=std::strchr(chars,ch);
@@ -38,27 +40,62 @@ void text(std::vector<uint32_t>& p,int x,int y,const std::string& str,uint32_t c
 }
 void ps4_draw_launcher(std::vector<uint32_t>& p,int selected,int active,
                        const std::array<PS4GameEntry,kPS4GameCount>& games,const std::string& message) {
+    using Clock=std::chrono::steady_clock;
+    static auto last=Clock::now();
+    static float position=float(selected);
+    auto now=Clock::now();
+    float dt=std::min(0.05f,std::chrono::duration<float>(now-last).count()); last=now;
+    float delta=float(selected)-position;
+    while(delta>2.5f) delta-=5;
+    while(delta< -2.5f) delta+=5;
+    position+=delta*(1-std::exp(-16*dt));
+    position=std::fmod(position+5,5);
     p.resize(W*H);
-    for(int y=0;y<H;++y) for(int x=0;x<W;++x)
-        p[y*W+x]=0xff000000u|uint32_t(10+y/32)<<16|uint32_t(16+y/20)<<8|uint32_t(32+y/12);
-    text(p,18,14,"MICKEY & DONALD",0xffffd580,2);
-    text(p,19,33,"COLLECTION / GAME LIBRARY",0xffa6bdd4);
-    text(p,356,18,"PS4",0xffa6bdd4);
-    const char* titles[]={"CASTLE OF ILLUSION","QUACKSHOT","WORLD OF ILLUSION","THE LION KING","ALADDIN - FINAL CUT"};
-    const char* subtitles[]={"MICKEY MOUSE","DONALD DUCK","MICKEY MOUSE AND DONALD DUCK","SIMBA","ALADDIN-REMIX"};
-    for(int i=0;i<kPS4GameCount;++i) {
-        int y=47+i*27; bool chosen=selected==i;
-        uint32_t accent=chosen?0xffffd580:0xff36506c;
-        rect(p,16,y,368,25,accent); rect(p,17,y+1,366,23,chosen?0xff263c57:0xff15273d);
-        rect(p,24,y+4,17,17,accent);
-        text(p,30,y+9,std::to_string(i+1),chosen?0xff18283c:0xffc7d9e9);
-        text(p,54,y+4,titles[i],chosen?0xffffe3ab:0xffe4ecf4);
-        text(p,54,y+15,subtitles[i],0xff91a9c3);
-        if(games[i].saved) text(p,346,y+15,"SAVE",0xff8edcaa);
-        std::string status=active==i?"PAUSED":games[i].source;
-        text(p,376-int(status.size())*6,y+4,status,games[i].ready?0xff8edcaa:0xffee967d);
+    const uint32_t accents[]={0xff83d6b4,0xffffc878,0xffb7a0ef,0xffefb565,0xff7ed5e5};
+    uint32_t accent=accents[selected];
+    for(int y=0;y<H;++y) for(int x=0;x<W;++x) {
+        int glow=std::max(0,30-std::abs(x-400)/18-std::abs(y-180)/12);
+        p[y*W+x]=0xff000000u|uint32_t(9+glow/3)<<16|uint32_t(15+glow/2)<<8|uint32_t(27+glow);
     }
-    text(p,18,185,message.empty()?"SELECT A GAME - HDD FIRST / USB FALLBACK":message,0xffb9cddd);
-    text(p,18,201,"X PLAY  O BACK  SQUARE RESTART  TRIANGLE SCAN",0xffffd580);
-    text(p,18,214,"R1 SAVE  L1 LOAD / IN GAME: TOUCHPAD MENU",0xff91a9c3);
+    text(p,32,23,"MICKEY & DONALD",0xffeef1f4);
+    text(p,32,46,"THE COLLECTION",0xff8e9fb5,1);
+    text(p,632,27,"GAME LIBRARY",0xff9daec4,1);
+    rect(p,32,65,736,1,0xff2c3e54);
+    const char* titles[]={"CASTLE OF ILLUSION","QUACKSHOT","WORLD OF ILLUSION","THE LION KING","ALADDIN - FINAL CUT"};
+    const char* subtitles[]={"MICKEY MOUSE","DONALD DUCK","MICKEY AND DONALD","SIMBA / PRIDE LANDS","THE FINAL CUT"};
+    std::array<int,5> order={0,1,2,3,4};
+    auto distance=[&](int i) { float d=i-position; while(d>2.5f)d-=5; while(d< -2.5f)d+=5; return d; };
+    std::sort(order.begin(),order.end(),[&](int a,int b){return std::abs(distance(a))>std::abs(distance(b));});
+    for(int i:order) {
+        float d=distance(i), focus=std::max(0.0f,1-std::abs(d));
+        int cw=260+int(100*focus), ch=cw*9/16;
+        int x=400+int(d*310)-cw/2, y=100+int((1-focus)*22);
+        rect(p,x-5,y-5,cw+10,ch+34,0xff080d17);
+        rect(p,x-2,y-2,cw+4,ch+4,i==selected?accent:0xff38495f);
+        rect(p,x,y,cw,ch,0xff17263a);
+        const auto& preview=games[i].preview;
+        if(preview.size()==320*180) {
+            for(int yy=0;yy<ch;++yy) for(int xx=0;xx<cw;++xx) {
+                int px=x+xx,py=y+yy;
+                if(px<0||px>=W||py<0||py>=H)continue;
+                uint32_t c=preview[(yy*180/ch)*320+xx*320/cw];
+                int brightness=150+int(105*focus);
+                p[py*W+px]=0xff000000u|(((c>>16)&255)*brightness/255)<<16|(((c>>8)&255)*brightness/255)<<8|(c&255)*brightness/255;
+            }
+        } else {
+            text(p,x+24,y+ch/2,games[i].ready?"PREPARING PREVIEW":"ROM NOT FOUND",0xffaebed0,1);
+        }
+        text(p,x+10,y+ch+10,titles[i],i==selected?0xffedf3fa:0xff9daec4,1);
+    }
+    text(p,(W-int(std::strlen(titles[selected]))*12)/2,343,titles[selected],0xfff2f3f6);
+    text(p,(W-int(std::strlen(subtitles[selected]))*6)/2,365,subtitles[selected],0xff9baec4,1);
+    for(int i=0;i<5;++i) rect(p,367+i*14,324,i==selected?10:5,3,i==selected?accent:0xff435269);
+    std::string status=active==selected?"PAUSED":games[selected].ready?"READY TO PLAY":"ROM MISSING";
+    if(games[selected].saved)status+=" / SAVE AVAILABLE";
+    text(p,32,82,status,accent,1);
+    text(p,650,82,std::to_string(selected+1)+" / 5",0xff9baec4,1);
+    rect(p,32,387,736,1,0xff2c3e54);
+    text(p,32,399,message.empty()?"LEFT / RIGHT  BROWSE     X  PLAY     O  BACK":message,0xffe2d3ad,1);
+    text(p,32,424,"R1 SAVE   L1 LOAD   SQUARE RESTART   TRIANGLE SCAN",0xff91a5bd,1);
+    text(p,650,424,"TOUCHPAD MENU",0xff91a5bd,1);
 }

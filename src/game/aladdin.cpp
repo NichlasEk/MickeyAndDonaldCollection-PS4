@@ -18,7 +18,9 @@ std::vector<RomPatch> patches(int e) {
 void line(void* host,int y,uint8_t* a,uint8_t* b,uint8_t*) {
  auto& view=*static_cast<WideMapView*>(host);auto& md=*view.md;auto& v=md.vdp;
  if(y==0) view.gameplay=playing(md);
- if(!playing(md)) return;
+ // FF7E2E is also a main-loop busy flag: it clears during active scanout.
+ // Decide at line zero and keep rendering the extensions for the whole frame.
+ if(!view.gameplay) return;
  // Rug Ride uses a fully populated, repeating plane, not the collision map.
  if(md.ram[0x7e36]==8) {view.left=view.right=0;return;}
  int bank=md.ram[0xf695]?1:0;
@@ -82,7 +84,10 @@ public:
  }
  bool can_configure(const MegaDrive& md,const GameConfig& c) const override {return patches_safe(md,patches(c.ext));}
  void post_frame(MegaDrive& md,const GameConfig& c,FrameInfo& f) override {
-  (void)md;(void)c;f.gameplay=view.gameplay;f.mask_left=view.left;f.mask_right=view.right;
+  (void)md;(void)c;f.gameplay=view.gameplay;
+  // Keep the visible image centred at either level boundary. Session eases
+  // both masks open together as the camera moves into the level.
+  f.mask_left=f.mask_right=std::max(view.left,view.right);
  }
 };
 }
