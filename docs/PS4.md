@@ -16,14 +16,14 @@ frontends are unchanged. This is not yet a complete console edition.
   the local ICD's shared semaphore epilogue-buffer reuse bug and redundant idle
   waits. The adapter targets this specific ICD, not arbitrary Vulkan drivers.
 - Starts in a three-game launcher: Castle of Illusion, QuackShot, World of Illusion.
-  D-pad / left stick selects; Cross starts or resumes, Square starts fresh,
+  D-pad / left stick selects; Cross starts or resumes, Square requests a confirmed restart,
   Circle returns to the paused game, Triangle rescans ROMs.
 - L1 or touchpad opens the launcher during gameplay and pauses the current game.
   Switching to another game discards the previous session; returning to the same
-  game resumes it. This is an in-memory pause, not a persistent save state.
+  game resumes it. Pause alone stays in memory. Use the save controls below for persistence.
 - Cards show HDD/USB/APP source or MISSING/BAD ROM. Missing or invalid ROMs
   keep the launcher open with a message. Copy ROMs to the paths below and rescan.
-- During gameplay R1 resets; D-pad / left stick moves, Square = Mega Drive A,
+- During gameplay R1 opens a restart confirmation (Cross confirms, Circle cancels); D-pad / left stick moves, Square = Mega Drive A,
   Cross = B, Circle = C, Options = Start.
 - Native AudioOut: 48 kHz S16 stereo, 512-frame submissions on a dedicated
   consumer thread, an 8192-frame ring and a 3072-frame (64 ms) refill target.
@@ -32,8 +32,19 @@ frontends are unchanged. This is not yet a complete console edition.
   512-sample AudioOut burst. The first GPU draw completes before audio starts. An underrun outputs silence and re-primes the queue.
   Reset and game switching discard queued audio; already submitted hardware
   blocks may finish. Soft reset also resets the shared resampler.
-- One player; no settings or user save-state UI yet. The underlying Session
-  supports save/load and is covered by the host ROM smoke test.
+- In the launcher, R1 saves the selected paused game; L1 loads the selected
+  game's slot and stays paused. Cross/Circle resumes after loading. A SAVE badge
+  means a file exists, not that it has been validated yet.
+- One slot per game at `/data/mickey-donald/saves/{coi,qs,woi}.state`.
+  Saving replaces that game's slot; no automatic save on exit or game switching.
+  Slots are shared by console users and remain on HDD when ROMs are on USB.
+  A bounded, versioned checksum wrapper rejects damaged files. Writes flush and
+  sync a temporary file before rename; write failure preserves the old slot.
+  Loading validates in a fresh session before replacing the paused game.
+  Copy the saves directory via FTP for backup. Compatibility across future core
+  revisions is not guaranteed; never commit state files (they contain game RAM).
+- Restart requires Cross confirmation; Circle cancels. This applies to both
+  gameplay R1 and launcher Square. One player; settings UI remains pending.
 - GPU objects are allocated once and owned until process exit for this diagnostic.
   GPU failures are logged; resources are not freed after a device-lost error.
 
@@ -107,9 +118,9 @@ Outputs:
 
 - `build/ps4/platform/ps4/MickeyDonaldPS4.elf`
 - `build/runtime/eboot.bin`
-- `dist/MickeyDonald-PS4-0.04-Test.pkg`, SHA-256 sidecar and JSON manifest
+- `dist/MickeyDonald-PS4-0.05-Test.pkg`, SHA-256 sidecar and JSON manifest
 
-Title ID: `MDCL00001`; version: `00.04`. Distinct from ScummVM and UT99.
+Title ID: `MDCL00001`; version: `00.05`. Distinct from ScummVM and UT99.
 The package contains a newly generated 512x512 RGB8 dashboard icon and copyright/license notices for
 this project, OpenOrbis, OpenGNM, vulkan-ps4 and opengnm-psbc.
 Icon: `res/ps4_icon0.png`; generation prompt: `res/ps4_icon_prompt.txt`.
@@ -204,8 +215,10 @@ verification of the other two games. Version 0.04 adds the launcher and awaits
 physical-console testing. Its PKG and sidecars have been delivered to `/data/pkg/`
 with full SHA-256 readback; existing ROMs were verified separately. Its native shadPS4 UI test starts all three games,
 returns to the menu, resumes, restarts and rescans. Missing and invalid ROM
-handling is checked separately. Second-player input, settings and filesystem
-save UI remain pending.
+handling is checked separately. Version 0.05 adds persistent save/load and restart confirmation. Host tests
+cover failed writes, corrupt/truncated files and fresh-session replay for all
+three ROMs. Native save/reload after process restart is tested separately.
+Second-player input and settings remain pending; 0.05 awaits physical testing.
 
 ## Public source hygiene
 

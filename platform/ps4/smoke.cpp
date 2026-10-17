@@ -1,9 +1,10 @@
 #include "rom.h"
+#include "state_store.h"
 #include <chrono>
 #include <cstdlib>
 #include <algorithm>
 int main(int argc, char** argv) {
-    if (argc != 2) { std::fprintf(stderr, "Usage: mdc_smoke RAW_ROM\n"); return 2; }
+    if (argc != 2 && argc != 3) { std::fprintf(stderr, "Usage: mdc_smoke RAW_ROM [STATE_PATH]\n"); return 2; }
     try {
         auto rom = load_rom_file(argv[1]);
         auto game = identify_rom(rom);
@@ -31,6 +32,15 @@ int main(int argc, char** argv) {
         if (!session.load_state(saved)) throw std::runtime_error("Save-state reload failed");
         session.run_frame(MD_RIGHT, 0);
         if (session.md().save_state() != expected) throw std::runtime_error("State replay diverged");
+        if(argc==3) {
+            ps4_write_state(argv[2],saved);
+            Session restored;
+            if(!restored.open(game.get(),rom)) throw std::runtime_error("Fresh session failed");
+            restored.apply_settings(settings);
+            if(!restored.load_state(ps4_read_state(argv[2]))) throw std::runtime_error("Disk state reload failed");
+            restored.run_frame(MD_RIGHT,0);
+            if(restored.md().save_state()!=expected) throw std::runtime_error("Fresh-session disk replay diverged");
+        }
         double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
         if (!audible) throw std::runtime_error("No nonzero audio in 600 frames");
         std::printf("PASS game=%s frames=600 size=%dx%d hash=%016llx samples=%zu nonzero=%zu seconds=%.3f state_replay=match (HOST ONLY)\n", game->id(), w,h,static_cast<unsigned long long>(hash),samples,audible,elapsed);

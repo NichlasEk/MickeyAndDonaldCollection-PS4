@@ -1,5 +1,8 @@
 #include "rom.h"
 #include "launcher.h"
+#include "state_store.h"
+#include <sys/stat.h>
+#include <cerrno>
 #include "video.h"
 #include "audio.h"
 #include "audio_pacing.h"
@@ -54,6 +57,11 @@ struct Pad {
     }
 };
 const char* ids[]={"coi","qs","woi"};
+std::string state_path(int i) { return std::string("/data/mickey-donald/saves/")+ids[i]+".state"; }
+void save_dirs() {
+    for(const char* p:{"/data/mickey-donald","/data/mickey-donald/saves"})
+        if(mkdir(p,0777)!=0 && errno!=EEXIST) throw std::runtime_error("Cannot create save directory");
+}
 const char* rom_roots[]={"/data/mickey-donald/roms",
     "/mnt/usb0/mickey-donald/roms","/mnt/usb1/mickey-donald/roms",
     "/mnt/usb2/mickey-donald/roms","/mnt/usb3/mickey-donald/roms","/app0/roms"};
@@ -74,6 +82,7 @@ std::array<PS4GameEntry,3> scan_games() {
         // Match the loader: a wrong high-priority ROM is reported, not hidden.
         break;
     }
+    for(int i=0;i<3;++i) games[i].saved=ps4_state_exists(state_path(i));
     note("Launcher ROM scan complete");
     return games;
 }
@@ -136,7 +145,7 @@ void benchmark(int frames) {
 }
 int main() {
     report=std::fopen("/data/mickey-donald-ps4.log","w");
-    note("Mickey & Donald PS4 0.04: native Vulkan + 48000 Hz stereo AudioOut");
+    note("Mickey & Donald PS4 0.05: native Vulkan + 48000 Hz stereo AudioOut");
     try {
         vk_ps4_log_open("/data/mickey-donald-vulkan.log");
         if(FILE* fixture=std::fopen("/app0/mdc-benchmark-frames.txt","r")) {
@@ -160,7 +169,7 @@ int main() {
         std::unique_ptr<GameModule> module;
         std::unique_ptr<Session> session;
         int selected=0, active=-1;
-        bool in_menu=true;
+        bool in_menu=true, restart_confirm=false;
         auto games=scan_games();
         std::string menu_message;
         std::vector<uint32_t> menu_pixels;
@@ -179,10 +188,41 @@ int main() {
         std::array<uint64_t,5> stages{};
         for(;;) {
             uint16_t buttons=pad.poll();
-            if(!in_menu && (pad.pressed&(ORBIS_PAD_BUTTON_L1|ORBIS_PAD_BUTTON_TOUCH_PAD))) {
+            if(!in_menu && (pad.pressed&(ORBIS_PAD_BUTTON_L1|ORBIS_PAD_BUTTON_TOUCH_PAD|ORBIS_PAD_BUTTON_R1))) {
                 in_menu=true; selected=active; audio.reset(); menu_message="GAME PAUSED - X OR O TO RESUME";
+                restart_confirm=(pad.pressed&ORBIS_PAD_BUTTON_R1)!=0;
+                if(restart_confirm) menu_message="RESTART GAME? X CONFIRM / O CANCEL";
                 note("Launcher opened; game paused");
             } else if(in_menu) {
+                bool confirmed=false;
+                if(restart_confirm) {
+                    if(pad.pressed&ORBIS_PAD_BUTTON_CROSS) { confirmed=true; restart_confirm=false; pad.pressed=ORBIS_PAD_BUTTON_SQUARE; }
+                    else {
+                        if(pad.pressed&ORBIS_PAD_BUTTON_CIRCLE) { restart_confirm=false; menu_message="RESTART CANCELLED"; }
+                        pad.pressed=0;
+                    }
+                }
+                if((pad.pressed&ORBIS_PAD_BUTTON_SQUARE) && !confirmed) {
+                    restart_confirm=true; menu_message="RESTART GAME? X CONFIRM / O CANCEL"; pad.pressed=0;
+                }
+                if(pad.pressed&ORBIS_PAD_BUTTON_R1) {
+                    if(!session || selected!=active) menu_message="SELECT THE PAUSED GAME TO SAVE";
+                    else try {
+                        save_dirs(); ps4_write_state(state_path(active),session->save_state());
+                        games[active].saved=true; menu_message="GAME SAVED TO HDD"; note("State saved to HDD");
+                    } catch(const std::exception& e) { note(e.what()); menu_message="SAVE FAILED - PREVIOUS SLOT RETAINED"; }
+                }
+                if(pad.pressed&ORBIS_PAD_BUTTON_L1) {
+                    try {
+                        auto state=ps4_read_state(state_path(selected));
+                        std::unique_ptr<GameModule> next_module;
+                        auto candidate=open_game(selected,next_module);
+                        if(!candidate || !candidate->load_state(state)) throw std::runtime_error("State incompatible with selected game");
+                        audio.reset(); session.reset(); module=std::move(next_module); session=std::move(candidate);
+                        active=selected; menu_message="STATE LOADED - X OR O TO RESUME";
+                        note("State loaded from HDD");
+                    } catch(const std::exception& e) { note(e.what()); menu_message="LOAD FAILED - CURRENT GAME RETAINED"; }
+                }
                 if(pad.pressed&ORBIS_PAD_BUTTON_UP) { selected=(selected+2)%3; menu_message.clear(); }
                 if(pad.pressed&ORBIS_PAD_BUTTON_DOWN) { selected=(selected+1)%3; menu_message.clear(); }
                 if(pad.pressed&ORBIS_PAD_BUTTON_TRIANGLE) { games=scan_games(); menu_message="ROM LIST UPDATED"; }
@@ -218,7 +258,7 @@ int main() {
             uint64_t core_us=0;
             if(session) {
                 uint64_t core_start=sceKernelGetProcessTime();
-                if(pad.pressed&ORBIS_PAD_BUTTON_R1) { audio.reset(); session->soft_reset(); }
+                // Restart is confirmed in the launcher, never a gameplay hotkey.
                 // Keep one game frame per display tick during steady 60 Hz
                 // output. AudioOut consumes 512-frame blocks, while one game
                 // frame produces about 801 samples: chasing an exact queue

@@ -119,3 +119,35 @@ versioned instructions/checksums were added without replacing 0.03 artifacts.
 All eight files were SHA-256 verified. Receipt:
 `build/ps4/ftp-004-receipt.json`. Installation and physical 0.04 test remain
 for the user; FTP delivery does not install the package.
+
+## Version 0.05 persistent saves and restart confirmation
+
+One HDD slot per game: `/data/mickey-donald/saves/{coi,qs,woi}.state`.
+Launcher R1 saves the selected paused game, L1 loads the selected slot and stays
+paused. SAVE badges indicate file presence. Saving overwrites that one slot;
+no autosave. States stay private and are not included in packages or Git.
+Checksummed, bounded wrapper; temporary file + flush/fsync + rename. Failed
+loads leave the current session intact by validating in a separate Session.
+Gameplay R1 and launcher Square now require Cross confirmation; Circle cancels.
+
+Five host suites pass, including disk roundtrip, corruption/truncation rejection
+and previous-slot preservation after write failure. All three ROM smoke tests
+also replay identically after disk load into a fresh Session. The 0.03 physical
+Castle report remains the only console evidence; 0.05 requires user testing.
+
+Native shadPS4 evidence: `build/ps4/savestate-native-save.log` saves all three
+slots; `savestate-native-load.log` loads all three after process exit/relaunch,
+then resumes play. Both restart cancellation and confirmation were exercised.
+Screenshots: `build/ps4/launcher-*-saved.png`, `launcher-*-loaded.png`.
+Current package: `dist/MickeyDonald-PS4-0.05-Test.pkg`.
+SHA-256: `9c9dae8b694a4d48badebf89f080833b0948d1f5618c34225db47c9f06dfbf32`.
+EBOOT: `d29ab3cd559d1394949956eed3f817412f39e9751f65bbdb16ef25e022a20b1d`.
+Package validation and readback matched all 11 payloads and the tested EBOOT;
+no ROMs, states or test markers are packaged. This test uses Xvfb for UI only,
+not performance acceptance. Gameplay pacing is unchanged.
+
+FTP 0.05 delivery completed with SHA-256 readback of package, sidecars,
+versioned instructions/checksums and all three existing ROMs. Receipt:
+`build/ps4/ftp-005-receipt.json`. Ready for the user to install from
+`/data/pkg/MickeyDonald-PS4-0.05-Test.pkg`. Existing console saves were not
+accessed or overwritten by deployment. Physical 0.05 validation remains pending.

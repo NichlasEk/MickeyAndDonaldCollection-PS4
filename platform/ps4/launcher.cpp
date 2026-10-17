@@ -54,10 +54,11 @@ void ps4_draw_launcher(std::vector<uint32_t>& p,int selected,int active,
         text(p,32,y+16,std::to_string(i+1),chosen?0xff18283c:0xffc7d9e9);
         text(p,54,y+8,titles[i],chosen?0xffffe3ab:0xffe4ecf4);
         text(p,54,y+24,subtitles[i],0xff91a9c3);
+        if(games[i].saved) text(p,346,y+24,"SAVE",0xff8edcaa);
         std::string status=active==i?"PAUSED":games[i].source;
         text(p,376-int(status.size())*6,y+8,status,games[i].ready?0xff8edcaa:0xffee967d);
     }
     text(p,18,185,message.empty()?"SELECT A GAME - HDD FIRST / USB FALLBACK":message,0xffb9cddd);
-    text(p,18,201,"X PLAY  SQUARE RESTART  O BACK  TRIANGLE SCAN",0xffffd580);
-    text(p,18,214,"D-PAD SELECT / IN GAME: L1 OR TOUCHPAD MENU",0xff91a9c3);
+    text(p,18,201,"X PLAY  O BACK  SQUARE RESTART  TRIANGLE SCAN",0xffffd580);
+    text(p,18,214,"R1 SAVE  L1 LOAD / IN GAME: TOUCHPAD MENU",0xff91a9c3);
 }

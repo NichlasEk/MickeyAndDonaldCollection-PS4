@@ -5,6 +5,7 @@
 #include <vector>
 struct PS4GameEntry {
     bool ready=false;
+    bool saved=false;
     std::string source="MISSING";
     std::string path;
 };
