@@ -11,6 +11,10 @@ uint32_t rl(const MegaDrive& md,unsigned a) { return (uint32_t(rw(md,a))<<16)|rw
 bool playing(const MegaDrive& md) {
     unsigned cam=rw(md,0xffcd36);
     return rw(md,0xffcd40)==0 && cam>=0x9300 && cam<0xffd0 &&
+        // Object +4 identifies the normal side-scrolling camera descriptor.
+        // Continue reuses the old camera slot for menu objects (e.g. 08EA90)
+        // while CD40, map pointers and VDP layout still look like gameplay.
+        rl(md,cam+4)==0x0008b7ee &&
         (md.vdp.reg[2]&0x38)==0x38 && (md.vdp.reg[16]&0x33)==1 &&
         rw(md,0xffcd1e)>=40 && rw(md,0xffcd1e)<=1024 && rw(md,0xffcd20)>0 && rw(md,0xffcd20)<=1024;
 }

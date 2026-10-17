@@ -1,3 +1,25 @@
+# Latest local fix: Lion continue-screen side corruption
+
+The private user save reproduces CONTINUE? incorrectly classified as gameplay.
+CD40, the old map pointers and VDP layout survive the transition. The object
+slot addressed by CD36 is reused for a menu object with descriptor 08EA90;
+normal side-scrolling cameras have descriptor 08B7EE at object+4. All nine
+side-scrolling level snapshots share that descriptor; Stampede has 1B51B6 and
+retains its existing original-width fallback. `playing()` now checks the camera
+object descriptor before enabling map/sprite extension rendering.
+
+`lion_continue_verify ROM SESSION_STATE` exercises 90 clean menu frames, chooses
+YES and sees 841 gameplay frames restored; all 1200 original centre images match
+the narrow renderer, and state replay passes. Fixture is a Session state without
+the outer PS4 store header and stays private under `build/lion-continue/`.
+The 1200-frame Lion timing test also passes with zero camera/input/centre changes.
+All ten Lion level-entry checks and six host suites pass. Native shadPS4
+save-load/resume capture confirms clean continue-screen gutters
+(`build/lion-continue/native-fixed/fixed.png`). Native build EBOOT SHA-256:
+`24db4fbd95e49d14087899f51aba30886bac206dba3b4cac00c5dd0849cf5d81`.
+This fix is not yet packaged or FTP-delivered. Installed 0.07 lacks this fix and
+the Aladdin active-scanout fix below. Physical verification remains pending.
+
 # Latest local fix: Aladdin clipped foreground extensions
 
 User supplied an exact native save showing chopped coals and bazaar artwork.

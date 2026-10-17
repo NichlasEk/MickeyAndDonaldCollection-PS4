@@ -144,3 +144,12 @@ frame. `python3 tools/re/aladdin_scanout_verify.py` exercises CPU-driven scanout
 and a stationary foreground redraw, from a reproducible ROM boot sequence.
 An optional `--state` accepts a private raw core snapshot. The former library
 fails this regression, while the corrected library has zero differing pixels.
+
+## Lion continue-screen classification
+
+Continue reuses gameplay's camera slot and map memory while leaving CD40 and
+the VDP layout unchanged. Only an object with the normal camera descriptor
+08B7EE at +4 now enables Lion's side extensions. Menu objects such as 08EA90
+fall back to the original viewport. The private-fixture host target
+`lion_continue_verify ROM SESSION_STATE` verifies clean gutters, unchanged centre,
+YES returning to gameplay widescreen and save-state replay.
