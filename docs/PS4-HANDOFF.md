@@ -1,3 +1,18 @@
+# Latest delivery: 0.09 Stampede widescreen
+
+Uploaded to `192.168.32.229:2121` at
+`/data/pkg/MickeyDonald-PS4-0.09-Test.pkg` with manifest and checksum sidecar.
+Includes reconstructed decorative Stampede sides and all previous graphics fixes.
+Pride Rock widescreen was reverified; existing saves remain compatible.
+Package SHA-256: `ef9b1b2f91c7151247dd811ceb0b389bd2e50249e52b7571795723d2af80d509`.
+EBOOT SHA-256: `bb6f3ba0c96c26b4aff0d438917fbd9a303baf5496b336701dba7a2d00b4aede`.
+Native release build and PkgTool validation pass. All nine extracted filesystem
+payloads match the manifest, including the current EBOOT. All three FTP uploads
+were read back and SHA-256 verified before rename. No ROMs are bundled.
+Evidence: `build/release-009-ftp.json`, `build/release-009-package.log`.
+This delivery supersedes the local-only Stampede status below. Installation and
+physical-console acceptance of Stampede remain pending.
+
 # Latest local feature: Stampede reconstructed widescreen
 
 Stampede now presents 400x224 without stretching its original 256-pixel centre.
