@@ -1,6 +1,7 @@
 // Castle of Illusion Starring Mickey Mouse (USA) - enhancement module.
 // Addresses and techniques: docs/re_coi_game.md, docs/re_coi_wide.md.
 #include "game.h"
+#include "menu_wide.h"
 #include "common.h"
 #include "../core/md.h"
 #include <algorithm>
@@ -343,8 +344,9 @@ int prop_copy(void* host, int index, uint16_t attr, int x, int y) {
 }
 
 void line_hook(void* host, int line, uint8_t* plane_a, uint8_t* plane_b, uint8_t* sprites) {
-    (void)sprites;
     MegaDrive& md = *(MegaDrive*)host;
+    menu_wide::classic_line(md,menu_wide::Classic::Castle,line,plane_a,plane_b,sprites);
+    if(menu_wide::classic_active(md)) return;
     if (!wide_gameplay(md)) return;
     if (md.vdp.ext > 64 && !hud_window(md.vdp, line)) {
         draw_far_columns(md, line, plane_a, false);
@@ -401,6 +403,7 @@ public:
     }
 
     void pre_frame(MegaDrive& md, const GameConfig& cfg) override {
+        menu_wide::classic_begin(md);
         // Infinite items also tops the stock up to the maximum (and redraws the HUD counter).
         if (cfg.cheat("inf_items") && md.ram16(MODE) == M_GAMEPLAY && md.ram16(ITEMS) < 30) {
             md.set_ram16(ITEMS, 30);
@@ -410,6 +413,7 @@ public:
     }
 
     void post_frame(MegaDrive& md, const GameConfig& cfg, FrameInfo& info) override {
+        info.menu_widescreen = menu_wide::classic_active(md);
         const int E = cfg.ext;
         info.gameplay = wide_gameplay(md);
         if (md.module_state[0] && md.ram16(MODE) == M_GAMEPLAY && sync_camera_bounds(md, E)) md.module_state[0] = 0;

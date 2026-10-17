@@ -80,16 +80,20 @@ void Session::run_frame(uint16_t pad1, uint16_t pad2) {
     if (module_) module_->post_frame(*md_, cfg_, info_);
     if (cfg_.ext == 0) {
         info_.mask_left = info_.mask_right = 0;
+    } else if (info_.menu_widescreen) {
+        info_.mask_left = info_.mask_right = 0;
+        info_.mask_lines = 0;
     } else if (!info_.gameplay) {
         info_.mask_left = info_.mask_right = cfg_.ext;
         info_.mask_lines = 0;
     }
     mask_lines_ = info_.mask_lines;
     pillar_below_ = info_.pillar_below && info_.gameplay;
-    // Leaving gameplay closes the side masks at once (beside a menu the old picture is stale);
+    // Recognised menus have reconstructed backgrounds. Other menus close the
+    // side masks at once because their old extension pixels may be stale;
     // coming back they open gradually so it doesn't pop. A mask that has to grow (the view widened
     // next to a level edge, a state loaded there) closes at once too: what it covers is outside the level.
-    if (!info_.gameplay) mask_l_ = mask_r_ = (float)cfg_.ext;
+    if (!info_.gameplay) mask_l_ = mask_r_ = info_.menu_widescreen ? 0.0f : (float)cfg_.ext;
     const float speed = std::max(2.0f, cfg_.ext / 6.0f);
     auto ease = [&](float& cur, int target) {
         if (cur < target) cur = (float)target;

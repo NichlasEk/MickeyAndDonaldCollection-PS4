@@ -36,6 +36,7 @@ struct GameConfig {
 
 // Reported by the module after every frame.
 struct FrameInfo {
+    bool menu_widescreen = false; // verified decorative menu background, not gameplay
     bool gameplay = false;   // a screen where widescreen shows real content
     int  mask_left = 0;      // pixels of the left extension to black out (0..ext)
     int  mask_right = 0;     // pixels of the right extension to black out (0..ext)

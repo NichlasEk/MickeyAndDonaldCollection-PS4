@@ -1,3 +1,23 @@
+# Latest local feature: menu widescreen backgrounds
+
+Recognised title/options backgrounds now extend without stretching text or
+characters. Lion: title/options scenery. Aladdin: title/options palace and sky.
+Castle: title mountains. QuackShot: selection/options checkerboard. World:
+plain backdrop around its title stage. Black screens and framed/storybook
+artwork retain their original presentation; this is not an all-screen unlock.
+See `docs/re_new_games_wide.md` for exact coverage and reproduction commands.
+
+Ten menu fixture cases pass centre/replay/mode-switch tests; full state and
+centre hashes match 0.09 for ten scenes and five 1200-frame START transitions.
+Six host suites, Lion continue and Stampede/Pride Rock regressions pass.
+Native EBOOT SHA-256:
+`3c9a7041dd07348e09a03652346d69d455db1ec0ebbec5feabab56d11ab76e11`.
+Native shadPS4 saved-state load/resume captures of both title menus were
+visually checked: `build/menu-wide/native-menu/{lion,aladdin}/title.png`.
+Private evidence: `build/menu-wide/`. No save format change.
+No new PKG/FTP delivery yet; installed/uploaded 0.09 below does not include this.
+Physical-console menu acceptance remains pending.
+
 # Latest delivery: 0.09 Stampede widescreen
 
 Uploaded to `192.168.32.229:2121` at

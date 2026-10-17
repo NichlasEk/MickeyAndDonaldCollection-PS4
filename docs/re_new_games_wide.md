@@ -176,3 +176,64 @@ original centre, all emulated RAM and CPU PC against normal width, and verifies
 The general level matrix uses the actual centre offset rather than assuming
 40 pixels for all modes; the Stampede map oracle is replaced by these dedicated
 presentation checks because this scene has no side-scrolling level map.
+
+## Recognised menu backgrounds (local successor to 0.09)
+
+`menu_wide.h` recognises background nametable signatures and reconstructs only
+extension pixels in the scanline hook. This is decorative presentation, not
+additional ROM artwork or gameplay. The original centre, logo, text, menu
+cursor and character sprites keep their positions and proportions.
+
+Supported scenes:
+
+- Lion King title and options: reflect the Pride Rock and sky planes; suppress
+  sprites outside the original viewport. Continue retains its original black
+  background and is never classified as gameplay.
+- Aladdin title and options: reflect the palace/starfield plane B; clear plane A
+  and sprites in the extensions so logos and text never repeat.
+- Castle of Illusion title: reflect the castle/mountains on plane B. Its black
+  options screen remains black.
+- QuackShot selection and options: repeat the outer 16-pixel checker pattern on
+  plane B. The framed parchment title keeps its existing presentation.
+- World of Illusion title: extend the plain backdrop around the framed stage;
+  keep the stage, logo and characters intact. Storybook pages are unchanged.
+
+Only recognised signatures enable `FrameInfo::menu_widescreen`; other screens
+retain their protective masks. Recognition resets every frame and is latched
+at scanline zero, including after loading a state. Older modules reserve
+`VDP::hook_flags` bits 8..11 for this host-only policy, preserving HUD bit 0.
+The signature is FNV-1a over the first 4096 bytes of the relevant nametable;
+layout checks disambiguate the table. No graphics, ROM or savestate data is
+embedded in source. Sprite/plane pixels are copied before palette composition,
+so the game's own raster effects and fades continue to apply.
+
+Validation (private inputs and captures under `build/menu-wide/`):
+
+- `menu_wide_verify ROM CORE_STATE EXPECT_MENU OUTPUT_PREFIX`: ten menu cases,
+  180 frames each; original centre exact, safe fallback masks, visible sides
+  on recognised scenes, state/full-image replay and 4:3/wide toggles. Lion and
+  Aladdin additionally compare all RAM and CPU PC against narrow rendering.
+- `menu_wide_trace` compiled against release commit `939ca88` and this change:
+  ten scenes x 180 frames and five START transitions x 1200 frames have identical
+  full emulated-state and original-centre hashes at the same widescreen setting.
+  This separate baseline is necessary because the older games already patch
+  CPU instructions in wide mode. `baseline-compare.log`, `transition-compare.log`.
+- Six CTest suites, Lion's 1200-frame continue regression and Stampede/Pride Rock
+  regressions pass. Logs: `ctest.log`, `continue.log`, `stampede.log`.
+- Native OpenOrbis build passes. Both title menus were loaded/resumed and
+  visually checked in shadPS4: `native-menu/{lion,aladdin}/title.png`,
+  `native-menu.log`. Resume used touchpad so the resume button did not also
+  select START inside the game. Physical-console testing is still separate.
+
+Example standalone baseline trace build (use baseline paths for all includes
+and both archives when compiling the baseline executable):
+
+```sh
+c++ -std=c++17 -O2 -I. -Isrc tools/re/menu_wide_trace.cpp \
+  build/host/libmdc_session.a build/host/libmdcore.a -o build/menu-wide/trace-current
+build/menu-wide/trace-current ROM CORE_STATE
+build/menu-wide/trace-current ROM CORE_STATE --start
+```
+
+The optional third argument exercises START after 60 frames, then runs to 1200.
+The tool prints hashes only. All ROMs, fixtures, captures and binaries stay local.

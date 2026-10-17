@@ -1,6 +1,7 @@
 // World of Illusion Starring Mickey Mouse and Donald Duck (USA) - enhancement module.
 // Addresses and techniques: docs/re_woi_game.md, docs/re_woi_wide.md.
 #include "game.h"
+#include "menu_wide.h"
 #include "common.h"
 #include "../core/md.h"
 #include <cstdio>
@@ -313,8 +314,9 @@ void draw_far_columns(const MegaDrive& md, int line, uint8_t* buf, bool plane_b)
 }
 
 void line_hook(void* host, int line, uint8_t* plane_a, uint8_t* plane_b, uint8_t* sprites) {
-    (void)sprites;
     MegaDrive& md = *(MegaDrive*)host;
+    menu_wide::classic_line(md,menu_wide::Classic::World,line,plane_a,plane_b,sprites);
+    if(menu_wide::classic_active(md)) return;
     if (md.vdp.ext <= 40 || !wide_active(md)) return;
     const uint8_t no_stream = md.ram8(0xFFFC61);
     if (!(no_stream & 0x20)) draw_far_columns(md, line, plane_a, false);
@@ -359,7 +361,7 @@ public:
         md.vdp.sprite_xoff = cfg.ext > 0 ? hud_sprite_xoff : nullptr;
         md.vdp.sprite_is_hud = cfg.ext > 0 ? hud_sprite : nullptr;
         md.vdp.sprite_x10 = cfg.ext > 0;
-        md.vdp.line_hook = cfg.ext > 40 ? line_hook : nullptr;
+        md.vdp.line_hook = cfg.ext > 0 ? line_hook : nullptr;
         md.vdp.hook_flags = cfg.hud_anchor ? 1 : 0;
         md.on_vblank = cfg.ext > 0 ? wide_vblank : nullptr;
         // Right away, not at the next VBlank: after a state load the next frame is drawn first.
@@ -367,6 +369,7 @@ public:
     }
 
     void pre_frame(MegaDrive& md, const GameConfig& cfg) override {
+        menu_wide::classic_begin(md);
         if (!cfg.cheat("max_hearts") || (md.ram16(MODE) & 0x7F) != M_GAMEPLAY) return;
         // Top hearts up to the maximum of 8 for each active, living player.
         for (uint32_t obj : {P1, P2}) {
@@ -376,6 +379,7 @@ public:
     }
 
     void post_frame(MegaDrive& md, const GameConfig& cfg, FrameInfo& info) override {
+        info.menu_widescreen = menu_wide::classic_active(md);
         const int E = cfg.ext;
         info.gameplay = wide_active(md);
         // Snapshot the section's camera bounds while it loads, before level scripts lock the camera

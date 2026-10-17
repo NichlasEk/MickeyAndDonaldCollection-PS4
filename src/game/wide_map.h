@@ -21,5 +21,6 @@ inline int wide_map_y(const VDP& v,int bank,int camera) {
 struct WideMapView {
     MegaDrive* md=nullptr;
     bool gameplay=false;
+    bool menu=false;
     int left=0,right=0;
 };

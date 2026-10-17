@@ -2,6 +2,7 @@
 #include "game.h"
 #include "common.h"
 #include "wide_map.h"
+#include "menu_wide.h"
 #include "lion_sprites.h"
 #include "lion_stampede.h"
 #include "../core/md.h"
@@ -28,7 +29,8 @@ void line(void* host,int y,uint8_t* a,uint8_t* b,uint8_t* sprites) {
         if(v.ext)lion_stampede::line(md,y,a,b);
         return;
     }
-    if(y==0) view.gameplay=playing(md);
+    if(y==0) {view.gameplay=playing(md);view.menu=!view.gameplay && menu_wide::lion(md);}
+    if(view.menu) {menu_wide::line(v,a,b,sprites,true);return;}
     if(!playing(md)) return;
     lion_sprites::line(md,y,sprites);
     unsigned cam=rw(md,0xffcd36), stride=rw(md,0xffcd1e), rows=rw(md,0xffcd20);
@@ -54,7 +56,7 @@ class Lion final:public GameModule {
  WideMapView view;
 public:
  void pre_frame(MegaDrive& md,const GameConfig& c) override {
-    view.gameplay=false;
+    view.gameplay=false;view.menu=false;
     // Normalise H32 presentation to the same 400-pixel canvas at 16:9.
     // The original 256 pixels remain untouched and centred; no CPU/ROM changes.
     if(md.vdp.ext>0) md.vdp.ext=c.ext && lion_stampede::active(md)?c.ext+32:c.ext;
@@ -101,7 +103,7 @@ public:
  bool can_configure(const MegaDrive& md,const GameConfig& c) const override {(void)c;return patches_safe(md,{});}
  void post_frame(MegaDrive& md,const GameConfig& c,FrameInfo& f) override {
     lion_stampede::finish(md,c.ext);
-    f.gameplay=view.gameplay;
+    f.gameplay=view.gameplay;f.menu_widescreen=view.menu;
   // Keep the visible image centred at either level boundary. Session eases
   // both masks open together as the camera moves into the level.
   f.mask_left=f.mask_right=std::max(view.left,view.right);

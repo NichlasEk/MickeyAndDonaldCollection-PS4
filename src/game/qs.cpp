@@ -1,6 +1,7 @@
 // QuackShot Starring Donald Duck (World, REV 00) - enhancement module.
 // Addresses and techniques: docs/re_qs_game.md, docs/re_qs_wide.md.
 #include "game.h"
+#include "menu_wide.h"
 #include "common.h"
 #include "../core/md.h"
 #include <cstdio>
@@ -418,8 +419,9 @@ void draw_far_columns(const MegaDrive& md, int line, uint8_t* buf, bool plane_b)
 }
 
 void line_hook(void* host, int line, uint8_t* plane_a, uint8_t* plane_b, uint8_t* sprites) {
-    (void)sprites;
     MegaDrive& md = *(MegaDrive*)host;
+    menu_wide::classic_line(md,menu_wide::Classic::Quack,line,plane_a,plane_b,sprites);
+    if(menu_wide::classic_active(md)) return;
     if (!(wide_gameplay(md) || game_over(md))) return;
     const bool hud = md.vdp.reg[18] == 0x98 && line >= 192;
     if (md.vdp.ext > 80 && !hud) {
@@ -485,6 +487,7 @@ public:
     // weapon flags when "All Weapons" was switched on (or when a new game / level select started with
     // it on - module_state is cleared on power-on and kept in save states).
     void pre_frame(MegaDrive& md, const GameConfig& cfg) override {
+        menu_wide::classic_begin(md);
         // module_state[3]: plane A X this frame is drawn with - read now, as VBlank at the end of the frame
         // already prepares the next one. With full-screen H scroll that is the uploaded scroll value;
         // otherwise the camera copy VBlank used ($8FB4) minus the screen shake / ship sway ($8F86, which
@@ -544,6 +547,7 @@ public:
     }
 
     void post_frame(MegaDrive& md, const GameConfig& cfg, FrameInfo& info) override {
+        info.menu_widescreen = menu_wide::classic_active(md);
         const int E = cfg.ext;
         // The narrow -> wide switch flag (configure) goes off once the camera has reached another 128-px cell -
         // judged by its previous-frame X ($852C): the spawner sees a crossing a frame after $8524 shows it.
