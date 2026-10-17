@@ -2,6 +2,7 @@
 #include "game.h"
 #include "common.h"
 #include "wide_map.h"
+#include "lion_sprites.h"
 #include "../core/md.h"
 #include <algorithm>
 namespace {
@@ -13,17 +14,13 @@ bool playing(const MegaDrive& md) {
         (md.vdp.reg[2]&0x38)==0x38 && (md.vdp.reg[16]&0x33)==1 &&
         rw(md,0xffcd1e)>=40 && rw(md,0xffcd1e)<=1024 && rw(md,0xffcd20)>0 && rw(md,0xffcd20)<=1024;
 }
-std::vector<RomPatch> patches(int e) {
-    if(!e) return {};
-    return {{0xeb0,{0x0c40,0x01bf},{0x0c40,uint16_t(0x1bf+e)}},
-            {0xec2,{0x0c41,0x0080},{0x0c41,uint16_t(0x80-e)}}};
-}
 // Only replace the extension pixels. Original VRAM, collision maps, camera,
 // centre image and the game's own streamer are left intact.
-void line(void* host,int y,uint8_t* a,uint8_t*,uint8_t*) {
+void line(void* host,int y,uint8_t* a,uint8_t*,uint8_t* sprites) {
     auto& view=*static_cast<WideMapView*>(host);auto& md=*view.md;auto& v=md.vdp;
     if(y==0) view.gameplay=playing(md);
     if(!playing(md)) return;
+    lion_sprites::line(md,y,sprites);
     unsigned cam=rw(md,0xffcd36), stride=rw(md,0xffcd1e), rows=rw(md,0xffcd20);
     unsigned map=rl(md,0xffcd22)&0xffffff, defs=rl(md,0xffcd2a)&0xffffff;
     int cx=wide_map_x(v,y,0,rw(md,cam+8)), cy=wide_map_y(v,0,rw(md,cam+10)), wy=cy+y;
@@ -72,29 +69,21 @@ public:
    bool active=playing(md) || (rw(md,0xccce)==4 && md.vdp.active_width()==256 && md.vdp.display_enabled());
    if(active && rw(md,0xccce)==index+1) {ok=true;break;}
   }
-  md.set_pad(0,0);md.clear_pc_hooks();
+  md.set_pad(0,0);md.clear_pc_hooks();configure(md,c);
   if(ok) for(int f=0;f<120;++f) md.run_frame();
   return ok;
  }
  void configure(MegaDrive& md,const GameConfig& c) override {
-    apply_patches(md,patches(c.ext));view.md=&md;md.vdp.hook_host=&view;md.vdp.line_hook=line;
-    // Lion polls the pad after its VBlank DMA queue. Extra edge sprites can
-    // move that poll past line 261 into the next host frame. Latch host input
-    // at VBlank, keeping it stable across that boundary, so DMA cost cannot
-    // select a different input sample. Both width modes use the same policy.
-    // Pending/latched buttons live in serialized module_state, not this object.
-    md.on_frame_start=[](MegaDrive& m) {
-        m.module_state[0]=uint32_t(m.pad_buttons[0])|(uint32_t(m.pad_buttons[1])<<16);
-        m.set_pad(0,uint16_t(m.module_state[1]));
-        m.set_pad(1,uint16_t(m.module_state[1]>>16));
-    };
-    md.on_vblank=[](MegaDrive& m) {
-        m.module_state[1]=m.module_state[0];
-        m.set_pad(0,uint16_t(m.module_state[1]));
-        m.set_pad(1,uint16_t(m.module_state[1]>>16));
-    };
+    (void)c;
+    apply_patches(md,{});view.md=&md;md.vdp.hook_host=&view;md.vdp.line_hook=line;
+    md.on_frame_start=nullptr;md.on_vblank=nullptr;
+    lion_sprites::ensure(md);
+    md.add_pc_hook(0xdce,[](MegaDrive& m){lion_sprites::begin(m);});
+    md.add_pc_hook(0xeb0,[](MegaDrive& m){if(playing(m)) lion_sprites::capture(m);});
+    // The original SAT DMA has just completed: present the matching snapshot.
+    md.add_pc_hook(0x13be,[](MegaDrive& m){lion_sprites::publish(m);});
  }
- bool can_configure(const MegaDrive& md,const GameConfig& c) const override {return patches_safe(md,patches(c.ext));}
+ bool can_configure(const MegaDrive& md,const GameConfig& c) const override {(void)c;return patches_safe(md,{});}
  void post_frame(MegaDrive& md,const GameConfig& c,FrameInfo& f) override {
     (void)md;(void)c;f.gameplay=view.gameplay;f.mask_left=view.left;f.mask_right=view.right;
  }

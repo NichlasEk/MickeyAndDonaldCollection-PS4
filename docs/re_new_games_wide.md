@@ -5,20 +5,22 @@ The source identifies itself as 0.06 research. No new package or console deliver
 is implied by these tests. Original PC/Android launchers still have three games;
 the PS4 launcher has five, with independent persistent save slots for each.
 
-The original Elephant Graveyard input-boundary divergence now has a targeted
-fix; see [the timing investigation](re_lion_input_timing.md). The longer
-1200-frame comparison still fails and remains an explicit research limit.
+Lion now renders side sprites on the host without additional emulated CPU/DMA
+work. The former Elephant Graveyard divergence is fixed in both 1200- and
+3600-frame comparisons; see [the timing investigation](re_lion_input_timing.md).
 
 ## Method
 
 The normal H40 image grows from 320×224 to 400×224 (40 pixels per side).
 The rendering hook writes only extension pixels; game VRAM, collision maps and
-camera logic are not rewritten. Sprite submission patches can still change
-emulated execution timing (see the unpatched-baseline finding below).
+camera logic are not rewritten. Lion uses a presentation-only metasprite cache
+to preserve the original emulated workload.
 Each module reconstructs foreground extension pixels from the game's decoded
 RAM map and ROM metatile definitions. The existing VDP pattern renderer handles
 palette, flips and priority. Background rendering uses the existing VDP path.
-Small checked ROM patches widen sprite clipping; source ROM files are untouched.
+Aladdin still uses checked ROM sprite-clipping patches. Lion observes the
+original sprite builder and draws the extension directly; source ROM files
+are untouched.
 
 The map camera must be aligned with the actual latched HScroll/VSRAM phase.
 RAM camera coordinates can already describe the next frame. An initial oracle
@@ -34,7 +36,8 @@ beyond the level bounds. Menus and unsupported modes retain the original viewpor
 | Aladdin Final Cut / ALADDIN-REMIX | 2384052 | DD66B3FA | camera FF7E06/08; dimensions FF7DC8/CC; definitions FF7DCE; row pointers FF9896 |
 
 Lion King metatiles are 16×16: map offsets select four tile words from ROM.
-Clipping comparisons at 0xEB0 and 0xEC2 extend the right and left bounds.
+The former clipping patches at 0xEB0 and 0xEC2 were removed. Hooks at 0xDCE,
+0xEB0 and 0x13BE collect and publish a presentation-only sprite snapshot.
 The diagnostic level entry uses the normal dispatcher at 0x1D765A.
 
 Aladdin uses a row-pointer table with 64-byte spacing and 16×16 metatiles.
@@ -88,8 +91,9 @@ the ROM sprite-submission patch as the trigger; altered emulated timing is the
 working explanation, not proven full-game equivalence. Preserve this finding:
 manual playthrough and game-timing review remain necessary before calling this
 production-ready. This is historical evidence from before the input-latch fix. The current
-240-frame Lion `--unpatched-baseline` passes; the dedicated 1200-frame timing
-test still fails. See the follow-up for the distinction.
+Lion `--unpatched-baseline` and the dedicated 1200/3600-frame timing tests
+now pass after replacing the sprite patch with host rendering. See the follow-up
+for current results; the following performance figures refer to earlier builds.
 
 Five host unit suites and all five ROM smoke tests passed. The isolated
 shadPS4 UI test started both additions and saved/loaded both slots; evidence:

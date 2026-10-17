@@ -1,18 +1,30 @@
-# Latest follow-up: Lion input timing
+# Latest: Lion side sprites no longer alter emulated timing
 
-See [timing investigation](re_lion_input_timing.md). Lion now latches controller
-input at VBlank; this removes the known 240-frame Elephant Graveyard divergence.
-A causal negative-control test reproduces the old failure, then passes with the
-latch. All ten Lion unpatched-clip baseline cases and fresh-session state replay
-pass. The longer 1200-frame test still fails: a later whole-frame phase delay
-remains. Do not claim full game-timing equivalence or make a release from these
-results alone. No new PKG/FTP or physical-console test was performed.
+The remaining Elephant Graveyard timing issue is fixed in the 1200- and
+3600-frame regressions. See [implementation and evidence](re_lion_input_timing.md).
+Lion's ROM clipping patches and interim input latch are removed. Read-only CPU
+hooks capture metasprites into a serialized host-only cache and render the side
+strips, without adding game CPU/DMA work. Stampede remains original width.
 
-Current EBOOT SHA-256:
-`95f75a345aec1efa8245198078b312c70ee25f6d8455b8c32f19b87809c28b62`.
-The following records earlier branch work; their hashes are historical.
+The 3600-frame comparison has zero camera/input/middle-pixel differences.
+36 sprite-oracle cases match the old visual output and exercise 1908 extra side
+pixels. All ten Lion level entries pass. Six host suites and all five ROM smokes
+pass; new-state replay includes all frame pixels after a fresh-session reload.
+Legacy v2 saves load; modules without extra presentation data still write v2.
+New Lion saves use v3 and need this build or newer.
 
-# Current research branch — 2026-10-17
+Final EBOOT SHA-256:
+`d8ea6dec8a537a02ff5e8c95d2d6ff28cea08016d0a6bce92e7af8ebcc12f754`.
+Native menu/start/save/load test: `build/lion-phase/native-menu-final.log`.
+Final native capacity (entries 0/2/9): 256.61–291.99 fps, p99 <= 4865 us;
+`build/performance/20261017T101336-273572Z/results.json`. Normal display: settled
+60.00 fps, zero audio underruns, work p99 <= 9572 us;
+`build/performance/20261017T101515-289303Z/results.json`.
+No new package/FTP or hardware test. Branch: `ps4/widescreen-aladdin-lion`.
+The following is historical evidence; earlier failure status and hashes are
+superseded by the timing investigation above.
+
+# Earlier research branch — 2026-10-17
 
 Current branch: `ps4/widescreen-aladdin-lion`, based on stable `2151947`.
 See [widescreen research](re_new_games_wide.md) for exact ROM identities,

@@ -60,6 +60,11 @@ public:
     uint64_t frame_count = 0;
     uint32_t module_state[8] = {};   // scratch for game modules: cleared on power-on, kept in save states
 
+    // Host-only presentation data owned by a game module; never mapped onto the bus.
+    // Serialized with states so pending/visible rendering snapshots survive reload.
+    static constexpr size_t kMaxModuleData = 65536;
+    std::vector<uint8_t> module_data;
+
     // Z80 bus control
     bool z80_busreq = false;
     bool z80_reset = true;

@@ -2,6 +2,7 @@
 #include "md.h"
 #include <cstring>
 #include <algorithm>
+#include <stdexcept>
 
 // ---------------------------------------------------------------------------
 // Callback trampolines
@@ -86,6 +87,7 @@ void MegaDrive::enable_ram_watch(bool on) {
 
 void MegaDrive::power_on() {
     memset(module_state, 0, sizeof(module_state));
+    module_data.clear();
     memset(ram, 0, sizeof(ram));
     memset(zram, 0, sizeof(zram));
     vdp.reset();
@@ -417,7 +419,7 @@ struct SysState {
     uint32_t module_state[8];   // game-module bookkeeping that belongs to this game session
 };
 const uint32_t kMagic = 0x53444D43;  // "CMDS"
-const uint32_t kVersion = 2;
+const uint32_t kVersion = 3;
 template <class T> void put(std::vector<uint8_t>& v, const T& t) {
     size_t o = v.size(); v.resize(o + sizeof(T)); memcpy(&v[o], &t, sizeof(T));
 }
@@ -427,7 +429,7 @@ std::vector<uint8_t> MegaDrive::save_state() {
     std::vector<uint8_t> out;
     SysState s;
     memset(&s, 0, sizeof(s));
-    s.magic = kMagic; s.version = kVersion;
+    s.magic = kMagic; s.version = module_data.empty()?2:kVersion;
     s.z80_busreq = z80_busreq; s.z80_reset = z80_reset; s.pal = pal;
     s.z80_bank = z80_bank;
     memcpy(s.io_data, io_data, 3); memcpy(s.io_ctrl, io_ctrl, 3);
@@ -435,6 +437,7 @@ std::vector<uint8_t> MegaDrive::save_state() {
     s.z80_int_clear_line = z80_int_clear_line;
     s.frame_count = frame_count;
     memcpy(s.module_state, module_state, sizeof(module_state));
+    if(module_data.size()>kMaxModuleData) throw std::length_error("Game module state too large");
     put(out, s);
     auto blob = [&](size_t n, auto&& saver) {
         size_t o = out.size();
@@ -448,16 +451,31 @@ std::vector<uint8_t> MegaDrive::save_state() {
     blob(psg.state_size(), [&](uint8_t* p) { psg.save_state(p); });
     blob(sizeof(ram), [&](uint8_t* p) { memcpy(p, ram, sizeof(ram)); });
     blob(sizeof(zram), [&](uint8_t* p) { memcpy(p, zram, sizeof(zram)); });
+    if(s.version==kVersion) {
+        put(out, uint32_t(module_data.size()));
+        out.insert(out.end(), module_data.begin(), module_data.end());
+    }
     return out;
 }
 
 bool MegaDrive::load_state(const std::vector<uint8_t>& data) {
     size_t need = sizeof(SysState) + cpu.state_size() + z80.state_size() + vdp.state_size() +
                   ym.state_size() + psg.state_size() + sizeof(ram) + sizeof(zram);
-    if (data.size() != need) return false;
+    if (data.size() < need) return false;
     SysState s;
     memcpy(&s, data.data(), sizeof(s));
-    if (s.magic != kMagic || s.version != kVersion) return false;
+    if (s.magic != kMagic || (s.version != 2 && s.version != kVersion)) return false;
+    uint32_t module_size=0;
+    if(s.version==2) {
+        if(data.size()!=need) return false;
+    } else {
+        if(data.size()<need+sizeof(module_size)) return false;
+        memcpy(&module_size,data.data()+need,sizeof(module_size));
+        if(module_size>kMaxModuleData || data.size()!=need+sizeof(module_size)+module_size) return false;
+    }
+    // Validate the complete envelope before changing the running machine.
+    std::vector<uint8_t> extra;
+    if(module_size) extra.assign(data.end()-module_size,data.end());
     const uint8_t* p = data.data() + sizeof(s);
     z80_busreq = s.z80_busreq != 0; z80_reset = s.z80_reset != 0; pal = s.pal != 0;
     z80_bank = s.z80_bank;
@@ -473,5 +491,6 @@ bool MegaDrive::load_state(const std::vector<uint8_t>& data) {
     psg.load_state(p); p += psg.state_size();
     memcpy(ram, p, sizeof(ram)); p += sizeof(ram);
     memcpy(zram, p, sizeof(zram));
+    module_data=std::move(extra);
     return true;
 }
