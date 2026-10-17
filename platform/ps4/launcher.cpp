@@ -58,7 +58,7 @@ void ps4_draw_launcher(std::vector<uint32_t>& p,int selected,int active,
         p[y*W+x]=0xff000000u|uint32_t(9+glow/3)<<16|uint32_t(15+glow/2)<<8|uint32_t(27+glow);
     }
     text(p,32,23,"MICKEY & DONALD",0xffeef1f4);
-    text(p,32,46,"THE COLLECTION",0xff8e9fb5,1);
+    text(p,32,46,"ALADDIN & THE LION KING",0xff8e9fb5,1);
     text(p,632,27,"GAME LIBRARY",0xff9daec4,1);
     rect(p,32,65,736,1,0xff2c3e54);
     const char* titles[]={"CASTLE OF ILLUSION","QUACKSHOT","WORLD OF ILLUSION","THE LION KING","ALADDIN - FINAL CUT"};

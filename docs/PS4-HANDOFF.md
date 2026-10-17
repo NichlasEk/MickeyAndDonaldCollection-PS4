@@ -1,3 +1,18 @@
+# Latest delivery: 0.08 menu title and both graphics fixes
+
+Main menu now reads MICKEY & DONALD / ALADDIN & THE LION KING.
+Version 0.08 includes Aladdin's active-scanout fix and Lion's continue-screen
+classification fix. Uploaded to `192.168.32.229:2121` at
+`/data/pkg/MickeyDonald-PS4-0.08-Test.pkg` with manifest and checksum sidecar.
+Package SHA-256: `f119095e59b4bb46b6fab94843d80060ea8e5e087ee10c6c003cdb5b3866c740`.
+EBOOT SHA-256: `959cebb4f1d00652eb0aeb42d54289c9e780fee5b540f4b299f5c9691cc28cc6`.
+Native build, menu layout inspection and PkgTool validation pass. All nine
+extracted filesystem payloads match the manifest and current EBOOT. All three
+uploads were read back and SHA-256 verified before rename. No ROMs are bundled.
+Evidence: `build/release-008-ftp.json`, `build/release-008-package.log`.
+Existing saves remain compatible. Installation and physical acceptance pending.
+The historical local-only notes below are superseded by this delivery.
+
 # Latest local fix: Lion continue-screen side corruption
 
 The private user save reproduces CONTINUE? incorrectly classified as gameplay.
