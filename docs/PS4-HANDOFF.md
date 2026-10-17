@@ -1,3 +1,18 @@
+# Latest delivery: 0.10 widescreen menu backgrounds
+
+Uploaded to `192.168.32.229:2121` at
+`/data/pkg/MickeyDonald-PS4-0.10-Test.pkg` with manifest and checksum sidecar.
+Includes the recognised menu backgrounds described below, Stampede widescreen,
+and all previous fixes. Existing saves remain compatible; no ROMs are bundled.
+Package SHA-256: `724d5fee344a482ad56dc2194eb4f5cb70b6c9a5234d71a70a45d980a958cbc9`.
+EBOOT SHA-256: `e93c7ec9fc9573f31f546428a6f61a7dc6cace22c69e586cf9c5e3b115415cc1`.
+Native release build and PkgTool validation pass. All nine extracted filesystem
+payloads match the manifest and current runtime. All three FTP uploads were
+read back and SHA-256 verified before rename to their final filenames.
+Evidence: `build/release-010-ftp.json`, `build/release-010-package.log`.
+This delivery supersedes the local-only menu status below. Installation and
+physical-console acceptance of the menus remain pending.
+
 # Latest local feature: menu widescreen backgrounds
 
 Recognised title/options backgrounds now extend without stretching text or
