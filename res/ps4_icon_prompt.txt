@@ -1,0 +1,6 @@
+Generated with the built-in image_gen tool. Artwork is newly generated, not extracted from game ROMs.
+Packaging conversion: 512x512, 8-bit RGB PNG, opaque, ancillary metadata removed.
+
+Use case: stylized-concept
+Asset type: square 512x512 console launcher icon for a retro adventure collection.
+Create original, polished fantasy adventure cover art: a luminous golden storybook castle atop a tiny floating island, a jungle canopy with jewel-toned leaves, and an open treasure chest spilling three sparkling gemstones. A magical ribbon of starlight curls upward around the castle. No characters or people. Bold clear silhouettes and big readable shapes, richly shaded hand-painted 1990s adventure illustration with crisp modern finish. Deep midnight blue and violet background, warm golden light, lush emerald greens and vivid ruby accents. Edge-to-edge opaque square art, no rounded mask or border. Keep essential details inside an 8 percent safe margin. Put large clear gold title lettering in the lower quarter, exactly "M&D" on the first line and "COLLECTION" on the second line. No other words, logos, console branding or watermark. Finished icon artwork, not a product mockup.

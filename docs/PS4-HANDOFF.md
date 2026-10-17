@@ -28,13 +28,20 @@ exact core-state replay after save/load. Hashes over rendered frames:
 - qs: `305fb6d5df12fe24`
 - woi: `dbcb1327d3d11e80`
 
-Current test PKG SHA-256:
-`dist/MickeyDonald-PS4-0.02-Test.pkg`:
-`225c8451449892c037b4741043b5940ca19216185db3ad5c18e6467baa0735ca`.
-The previous 0.01 package is preserved. Version 0.02 passed pkg_validate;
+Current test PKG: `dist/MickeyDonald-PS4-0.03-Test.pkg` (19,726,336 bytes),
+SHA-256 `ef08801120242dfb80f0c9385c416f4938ff859a527ce9bbee68497c8b655a9b`.
+EBOOT SHA-256 `c06bd855d0b434ec6013e87ba84584d83bc274d7e208a1f680ff0c06715b9c50`.
+Earlier 0.01/0.02 packages are preserved. Version 0.03 passed pkg_validate;
 all 11 payload hashes matched after extraction, including the tested EBOOT.
-Always recheck the sidecar after rebuilding; the generated manifest contains
-archive hashes and per-file package hashes.
+The new generated icon is `res/ps4_icon0.png`, RGB8 512x512, with its prompt in
+`res/ps4_icon_prompt.txt`. The original artwork is private under `build/artwork/`.
+
+Private delivery folder: `dist/MickeyDonald-PS4-0.03/`, containing the PKG,
+checksums, manifest, README and separate `mickey-donald/roms/`.
+FTP delivery to the user's console completed with full readback of eight files:
+PKG/sidecars in `/data/pkg/`; ROMs and instructions in `/data/mickey-donald/`.
+Receipt: `build/ps4/ftp-receipt.json` (private endpoint details).
+No installation or physical execution was performed.
 
 Native graphics dependency checkouts (locally patched; revisions alone are not
 sufficient to reproduce the archives):
@@ -50,26 +57,35 @@ pass. The app-local presentation adapter queues flips and protects scanout
 ownership. GPU fences protect mapped resources and the shared ICD epilogue.
 The CPU can emulate the next frame while the prior GPU draw completes.
 
-Latest first-level evidence: `build/ps4/emulator-audio-level.log`,
-`build/ps4/*-level-emulator.png`, `build/ps4/audio-capture-results.json` and
-private `build/ps4/audio-*.pcm`. Each game produced 8.192 seconds of captured
-nonzero stereo audio. Capture used a private null sink; only the owned test
-process's stream was routed/unmuted, then its mute state was restored. Other
-applications and existing emulator processes were not altered.
+Performance evidence:
 
-Measured rolling display-loop rate was approximately 50–54 fps, emulation about
-60 fps. Castle/QuackShot recorded no underruns; World recorded 99 missing sample
-frames (2.1 ms). Work p95 was about 18–21 ms, core batches about 6.5–7.6 ms and
-render work including fence waits about 13–18 ms. Several unrelated emulator
-workloads were active on the host, so treat these as diagnostic measurements.
+- Capacity: `build/performance/20261017T082847-260842Z/results.json`.
+  Nine cases, 1200 timed frames each after 120 warmup frames. Native core,
+  resampling, 1280x720 private render target and GPU completion: 274–330 fps,
+  p99 3.9–9.6 ms, maximum 24.2 ms. AudioOut/VideoOut delivery excluded. This
+  run preceded the final display pacing refinement; the offscreen path is unchanged.
+- Final display: `build/performance/20261017T083847-358943Z/results.json`.
+  Nine cases (entries 0, 4, 9 in coi/qs/woi), 600 frames each, real desktop
+  X11/XWayland output. The report's EBOOT hash matches the package exactly.
+  All passed: 60.00–60.49 loop fps, zero underruns, work p99 4.36–9.91 ms,
+  maximum 14.81 ms. Steady windows: 0–1 repeated frames, no catch-up frames.
+- Xvfb capped even the ROM-free pattern at ~50 fps; the same binary reached
+  60 fps on the desktop. Do not treat that Xvfb ceiling as core throughput.
+- The first GPU draw now completes before AudioOut startup to avoid startup
+  starvation during lazy shader compilation. A two-block audio queue deadband
+  avoids unnecessary paired duplicate/catch-up frames at steady 60 Hz.
+- Earlier isolated captures in `build/ps4/audio-*.pcm` contain actual nonzero
+  stereo output for all three games. Other application streams were untouched.
 
-The required 60 fps with roughly 80 fps capacity is NOT achieved/verified.
-Next: measure GPU completion and flip pacing on the physical PS4, then resolve
-the remaining presentation stalls and audio underruns under load. Do not claim
-that core-only timings prove overall headroom. Full playthrough, UI and
-second-player support remain pending. No physical-console execution, FTP
-transfer or installation has been performed.
+Run `scripts/benchmark-ps4.py --help` for reproducible capacity/display cases.
+Each run snapshots its binary and isolates its profile, ROM links and fixtures.
+Normal `build/runtime/` has no test markers. Generated data never enters Git
+or the PKG. The runner searches HDD first, USB0..3 second, and /app0 last;
+see PS4.md for exact paths. The selected ROM path is logged.
 
-The local `mdc-test-level.txt` fixture was removed after testing; normal boot is
-restored. Diagnostic markers, ROMs and screenshots are excluded by the package
-allowlist. Use `scripts/audit-public-history.py` after commits and before pushes.
+The minimum emulator p99 budget now passes, but these short fixtures are not a
+full playthrough or a physical-PS4 guarantee. Longer interactive/worst-case
+coverage is still required; no console installation/execution has occurred.
+Full UI and second-player support are later work. Do not overwrite neighboring
+projects or stop unrelated emulator processes. Audit public history after
+committing and before pushing; keep ROMs, the delivery folder and receipts local.

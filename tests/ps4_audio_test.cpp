@@ -1,5 +1,6 @@
 // Exercise the actual consumer thread with a deterministic, gated AudioOut device.
 #include "../platform/ps4/audio.h"
+#include "../platform/ps4/audio_pacing.h"
 #include <orbis/AudioOut.h>
 #include <array>
 #include <chrono>
@@ -50,6 +51,26 @@ int32_t sceAudioOutSetVolume(int port,int mask,int* volume) {
 }
 int main() {
     try {
+        // 60 Hz presentation with a 512-frame device clock. An exact refill
+        // target used to duplicate frames merely due to block quantization.
+        size_t queued=0, device_phase=0;
+        auto produce=[&]() {
+            bool refill=ps4_audio_refill(queued);
+            int advanced=0;
+            while(ps4_audio_advance(queued,advanced,refill)) { queued+=801; ++advanced; }
+            require(queued<=8192,"pacing overflow");
+            return advanced;
+        };
+        require(produce()==4,"startup did not prime");
+        for(int tick=0;tick<600;++tick) {
+            device_phase+=800;
+            while(device_phase>=512) { require(queued>=512,"pacing underrun"); queued-=512; device_phase-=512; }
+            require(produce()==1,"block quantization duplicated or skipped a game frame");
+        }
+        // Recover a real stall, and stop producing when the display is faster
+        // than the device. The ring always stays bounded.
+        queued=500; require(produce()==4,"stall did not catch up");
+        queued=PS4Audio::target_frames+1024; require(produce()==0,"high queue did not throttle");
         reset_mock();
         {
             PS4Audio audio;

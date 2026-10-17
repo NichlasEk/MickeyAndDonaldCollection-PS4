@@ -21,8 +21,9 @@ frontends are unchanged. This is not yet a complete console edition.
 - Without ROMs, shows an animated color test pattern; L1 retries ROM loading.
 - Native AudioOut: 48 kHz S16 stereo, 512-frame submissions on a dedicated
   consumer thread, an 8192-frame ring and a 3072-frame (64 ms) refill target.
-  Audio consumption clocks emulation; display stalls cause frame skipping rather
-  than slowed game audio. An underrun outputs silence and re-primes the queue.
+  Audio queue depth controls catch-up after stalls. A two-block deadband
+  preserves one game frame per display tick instead of reacting to every
+  512-sample AudioOut burst. The first GPU draw completes before audio starts. An underrun outputs silence and re-primes the queue.
   Reset and game switching discard queued audio; already submitted hardware
   blocks may finish. Soft reset also resets the shared resampler.
 - One player, no launcher/menu or user save-state UI yet.
@@ -48,8 +49,12 @@ The second command makes verified copies under ignored `build/local-roms/`:
 | `qs.bin` | QuackShot | 524288 | 88C8DD94 |
 | `woi.bin` | World of Illusion | 1048576 | 921EBD1C |
 
-On a PS4, copy these files to `/data/mickey-donald/roms/`. The runtime also checks
-`/app0/roms/` as a fallback, useful for a local emulator staging directory.
+On a PS4, copy these files to `/data/mickey-donald/roms/` (HDD, checked first).
+For USB fallback, put `mickey-donald/roms/` at the root of the USB drive. The
+runner checks `/mnt/usb0/mickey-donald/roms/` through `/mnt/usb3/mickey-donald/roms/`
+in order, then `/app0/roms/` as the final development fallback. Priority applies
+per game. The selected path is logged; a wrong CRC is rejected rather than run.
+The local private delivery folder places the PKG beside `mickey-donald/roms/`.
 The package script never bundles ROMs. ROMs, states and generated screenshots
 are excluded from Git. The source game's licensing does not grant rights to
 redistribute Sega/Disney game content.
@@ -95,11 +100,12 @@ Outputs:
 
 - `build/ps4/platform/ps4/MickeyDonaldPS4.elf`
 - `build/runtime/eboot.bin`
-- `dist/MickeyDonald-PS4-0.02-Test.pkg`, SHA-256 sidecar and JSON manifest
+- `dist/MickeyDonald-PS4-0.03-Test.pkg`, SHA-256 sidecar and JSON manifest
 
-Title ID: `MDCL00001`; version: `00.02`. Distinct from ScummVM and UT99.
-The package contains a neutral generated icon and copyright/license notices for
+Title ID: `MDCL00001`; version: `00.03`. Distinct from ScummVM and UT99.
+The package contains a newly generated 512x512 RGB8 dashboard icon and copyright/license notices for
 this project, OpenOrbis, OpenGNM, vulkan-ps4 and opengnm-psbc.
+Icon: `res/ps4_icon0.png`; generation prompt: `res/ps4_icon_prompt.txt`.
 
 ## Emulator run
 
@@ -114,21 +120,53 @@ For local level tests only, put a zero-based level number in
 per-draw Vulkan tracing, create `build/runtime/mdc-vulkan-trace.txt`; otherwise
 only startup tracing is enabled. Neither marker enters the package allowlist.
 
-## Performance target and measurements
+## Performance gate before hardware testing
 
-Target: 60 displayed fps, with capacity for about 80 fps (12.5 ms frame work),
-without speeding up the original game. **This target has not been met or verified.**
-The app reports rolling 300-frame display-loop and emulation rates, p95/max
-CPU-plus-render work, separate core/render p95 and average display ownership
-wait. Render work includes GPU fence waits. These are application timings, not
-GPU timestamp queries or a count of unique frames actually scanned out.
+Target: stable 60 Hz output, with capacity for at least 80 fps (12.5 ms frame
+work). Keep emulation at the original game speed. A fast core-only benchmark
+is insufficient; inspect CPU, audio mixing, completed GPU work, presentation,
+frame repeats/catch-up and AudioOut underruns separately.
 
-In the latest shadPS4/Xvfb first-level run, display-loop throughput was roughly
-50–54 fps (previous baseline about 30). Emulation remained about 60 fps. Core
-batches were 6.5–7.6 ms p95, while render work including waits was 13–18 ms p95;
-combined work was about 18–21 ms p95. The 12.5 ms total budget is therefore not
-established. The host also had other emulator workloads; this is not a clean
-hardware benchmark. Do not stop unrelated processes to improve the numbers.
+The native runner reports rolling 300-frame rates, p95/p99/max work, individual
+render stages, frame repeats and extra catch-up frames. Work excludes the
+intentional wait for display ownership but includes GPU fence waits. These are
+wall-clock application timings, not GPU timestamp queries or unique scanout
+counts. Inspect maxima as well as percentile values.
+
+Use the reproducible harness after building and preparing ROMs:
+
+```sh
+# Capacity: 120 warmup frames, then 1200 timed frames per game/level entry.
+# CPU, audio mixing, texture upload, full 1280x720 draw and GPU completion;
+# a private render target excludes AudioOut delivery and VideoOut refresh.
+DISPLAY= SHADPS4=/path/to/shadps4 python3 scripts/benchmark-ps4.py \
+  --mode capacity --levels 0,4,9 --frames 1200
+
+# Pacing: run from a real desktop X11/XWayland session. Each game uses its
+# own staging directory and profile. This opens and closes test windows.
+SHADPS4=/path/to/shadps4 python3 scripts/benchmark-ps4.py \
+  --mode display --levels 0,4,9 --frames 1800
+```
+
+The harness snapshots the EBOOT and records its hash. Results, logs, fixtures
+and private ROM links stay in ignored `build/performance/<timestamp>/`.
+A capacity case requires >=80 fps and p99 <=12.5 ms. A display case requires
+59–61 fps for both the display loop and emulation, zero cumulative underrun
+frames and work p99 <=12.5 ms in every window. These short fixtures are a
+minimum gate, not proof of a full playthrough or physical-console performance.
+No synthetic inputs are sent to the user's desktop.
+
+The earlier 50–54 fps ceiling came from the Xvfb presentation setup: even a
+ROM-free color pattern was limited there, while the same binary reached 60 fps
+on the desktop. Do not use Xvfb to accept/reject normal display pacing, and do
+not raise the emulated vblank frequency to inflate results.
+
+A nine-case capacity run (entries 0, 4, 9 in all three games; 1200 timed frames
+per case) measured 274–330 fps and 3.9–9.6 ms p99. Maximum individual times
+reached 24.2 ms, so this is not a claim that every frame meets the budget.
+Several unrelated emulator workloads were active on the host. The separate
+30-second first-level display tests reached about 60 fps; an initial Castle
+underrun motivated moving GPU warmup before AudioOut startup.
 
 ## Validation boundary
 
@@ -138,20 +176,25 @@ Both SPIR-V shaders pass `spirv-val --target-env vulkan1.0`.
 The ROM-free package passes `PkgTool.Core pkg_validate`; all 11 extracted payloads
 match their manifest hashes and the extracted EBOOT matches the tested runtime.
 
-shadPS4 initializes native Vulkan, accepts controller input and switches all
-three games. The latest local level fixture reached each game's first level,
-with game imagery and nonzero captured stereo output through an isolated audio
-sink. Castle and QuackShot had zero recorded underrun frames in that run; World
-had 99 missing sample frames (about 2.1 ms) before re-priming. Earlier runs also
-had occasional underruns; audio stability under stalls still needs testing.
-The four host suites cover both CPU cores, the actual AudioOut consumer against
-a gated mock, and presentation ownership/error handling against a mock timeline.
-These mocks do not validate firmware behavior.
+The packaged 0.03 EBOOT matches the final nine-case desktop display run
+(entries 0, 4, 9 in all three games, 600 frames per case). Every case passed:
+60.00–60.49 display-loop fps, zero underrun frames, work p99 4.36–9.91 ms,
+and maximum individual work time 14.81 ms. The first window includes priming;
+steady windows recorded 0–1 repeated frames and no extra catch-up frames.
+The 512-sample AudioOut quantum no longer forces continual paired skip/catch-up
+updates. Host simulation tests cover this timing regression and stall recovery.
+These are short mostly idle level fixtures; they do not cover every gameplay
+situation. Earlier capacity runs had larger host scheduling outliers.
 
-No physical PS4 execution, audible console test, FTP transfer, installation or
-full playthrough has been performed. 60 fps with 80 fps capacity remains an open
-acceptance requirement. Second-player input, launcher/settings and filesystem
-save UI are also pending.
+Nonzero stereo output was captured separately for all three games before this
+pacing refinement. The mock AudioOut and presentation tests do not validate
+firmware behavior. Four host suites and all three ROM smoke tests pass.
+
+The 0.03 PKG and separate ROM folder have been delivered by FTP and verified by
+full SHA-256 readback. No physical PS4 execution, audible console test,
+installation or full playthrough has been performed. Longer interactive
+coverage and worst-case stalls remain to be checked. Second-player input,
+launcher/settings and filesystem save UI are also pending.
 
 ## Public source hygiene
 

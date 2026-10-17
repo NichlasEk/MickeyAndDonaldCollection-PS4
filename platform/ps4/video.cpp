@@ -28,7 +28,8 @@ struct PS4Video::Impl {
     VkBuffer vertices{}; VkDeviceMemory vertex_memory{}; void* vertex_map{};
     VkSampler sampler{}; VkDescriptorSetLayout set_layout{}; VkDescriptorPool descriptors{}; VkDescriptorSet set{};
     VkCommandPool commands{}; VkCommandBuffer command{}; VkFence fence{};
-    bool first = true, pending = false;
+    bool first = true, pending = false, benchmark=false;
+    VkDeviceMemory benchmark_memory{};
     uint32_t pending_index=0;
     PS4VideoTiming timing;
     uint32_t memory_type(uint32_t bits) {
@@ -68,12 +69,33 @@ struct PS4Video::Impl {
         s.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
         s.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR; s.presentMode = VK_PRESENT_MODE_FIFO_KHR;
         VK(vkCreateSwapchainKHR(device, &s, nullptr, &swap));
-        VK(vkGetSwapchainImagesKHR(device, swap, &count, nullptr)); images.resize(count);
-        VK(vkGetSwapchainImagesKHR(device, swap, &count, images.data()));
+        if(benchmark) {
+            // A private render target: never render into an image being scanned
+            // out, and never change VideoOut refresh rate to inflate throughput.
+            VkImageCreateInfo target{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+            target.imageType=VK_IMAGE_TYPE_2D; target.format=s.imageFormat;
+            target.extent={screen_w,screen_h,1}; target.mipLevels=target.arrayLayers=1;
+            target.samples=VK_SAMPLE_COUNT_1_BIT; target.tiling=VK_IMAGE_TILING_OPTIMAL;
+            target.usage=VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            VkImage image; VK(vkCreateImage(device,&target,nullptr,&image));
+            VkMemoryRequirements req{}; vkGetImageMemoryRequirements(device,image,&req);
+            VkPhysicalDeviceMemoryProperties props{}; vkGetPhysicalDeviceMemoryProperties(physical,&props);
+            uint32_t type=UINT32_MAX;
+            for(uint32_t i=0;i<props.memoryTypeCount;++i)
+                if((req.memoryTypeBits&(1u<<i)) && (props.memoryTypes[i].propertyFlags&VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) { type=i; break; }
+            if(type==UINT32_MAX) throw std::runtime_error("No device-local benchmark target memory");
+            VkMemoryAllocateInfo alloc{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+            alloc.allocationSize=req.size; alloc.memoryTypeIndex=type;
+            VK(vkAllocateMemory(device,&alloc,nullptr,&benchmark_memory));
+            VK(vkBindImageMemory(device,image,benchmark_memory,0)); images.push_back(image);
+        } else {
+            VK(vkGetSwapchainImagesKHR(device, swap, &count, nullptr)); images.resize(count);
+            VK(vkGetSwapchainImagesKHR(device, swap, &count, images.data()));
+        }
         VkAttachmentDescription a{}; a.format = s.imageFormat; a.samples = VK_SAMPLE_COUNT_1_BIT;
         a.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; a.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         a.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE; a.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        a.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; a.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        a.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; a.finalLayout = benchmark?VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
         VkAttachmentReference color{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
         VkSubpassDescription sub{}; sub.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         sub.colorAttachmentCount = 1; sub.pColorAttachments = &color;
@@ -159,11 +181,12 @@ struct PS4Video::Impl {
         VkFenceCreateInfo fi{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO}; VK(vkCreateFence(device,&fi,nullptr,&fence));
     }
     void present(const uint32_t* bgra, int w, int h) {
-        uint64_t work_start=sceKernelGetProcessTime(), flip_us=0;
+        uint64_t work_start=sceKernelGetProcessTime(), flip_us=0, gpu_wait_us=0;
         // The CPU emulates the next frame while the preceding draw runs. Wait
         // before reusing its texture, vertices, command buffer or EOP packet.
         if(pending) {
             VK(vkWaitForFences(device,1,&fence,VK_TRUE,2000000000ull));
+            gpu_wait_us=sceKernelGetProcessTime()-work_start;
             VkPresentInfoKHR pi{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
             pi.swapchainCount=1; pi.pSwapchains=&swap; pi.pImageIndices=&pending_index;
             uint64_t flip_start=sceKernelGetProcessTime();
@@ -172,6 +195,7 @@ struct PS4Video::Impl {
             flip_us=sceKernelGetProcessTime()-flip_start;
             pending=false;
         }
+        uint64_t upload_start=sceKernelGetProcessTime();
         if(!bgra || w<=0 || w>int(tex_w) || h<=0 || h>int(tex_h)) throw std::runtime_error("Invalid frame size");
         for(int y=0;y<h;++y) {
             auto* dst=reinterpret_cast<uint32_t*>(static_cast<uint8_t*>(texture_map)+texture_layout.offset+y*texture_layout.rowPitch);
@@ -185,15 +209,22 @@ struct PS4Video::Impl {
         for(auto& r:ranges) { r.sType=VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE; r.size=VK_WHOLE_SIZE; }
         ranges[0].memory=texture_memory; ranges[1].memory=vertex_memory;
         VK(vkFlushMappedMemoryRanges(device,2,ranges));
+        uint64_t upload_us=sceKernelGetProcessTime()-upload_start;
+        uint64_t acquire_start=sceKernelGetProcessTime();
         // Serialize acquisition, upload and presentation for this first backend.
         // One fence avoids the ICD's shared semaphore epilogue-buffer reuse path.
-        VK(vkResetFences(device,1,&fence));
-        uint32_t index=0; VK(vkAcquireNextImageKHR(device,swap,2000000000ull,VK_NULL_HANDLE,fence,&index));
-        VK(vkWaitForFences(device,1,&fence,VK_TRUE,2000000000ull));
+        uint32_t index=0;
+        if(!benchmark) {
+            VK(vkResetFences(device,1,&fence));
+            VK(vkAcquireNextImageKHR(device,swap,2000000000ull,VK_NULL_HANDLE,fence,&index));
+            VK(vkWaitForFences(device,1,&fence,VK_TRUE,2000000000ull));
+        }
         if(index>=targets.size()) throw std::runtime_error("Invalid swapchain index");
         uint64_t retire_start=sceKernelGetProcessTime();
-        ps4_wait_image_reusable(index);
+        uint64_t acquire_us=retire_start-acquire_start;
+        if(!benchmark) ps4_wait_image_reusable(index);
         uint64_t retire_us=sceKernelGetProcessTime()-retire_start;
+        uint64_t record_start=sceKernelGetProcessTime();
         VK(vkResetCommandBuffer(command,0));
         VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}; begin.flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         VK(vkBeginCommandBuffer(command,&begin));
@@ -213,9 +244,17 @@ struct PS4Video::Impl {
         vkCmdDraw(command,6,1,0,0); vkCmdEndRenderPass(command); VK(vkEndCommandBuffer(command));
         VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
         submit.commandBufferCount=1; submit.pCommandBuffers=&command;
+        uint64_t record_us=sceKernelGetProcessTime()-record_start;
+        uint64_t submit_start=sceKernelGetProcessTime();
         VK(vkResetFences(device,1,&fence)); VK(vkQueueSubmit(queue,1,&submit,fence));
-        pending=true; pending_index=index;
-        timing={sceKernelGetProcessTime()-work_start-retire_us-flip_us,flip_us+retire_us};
+        uint64_t submit_us=sceKernelGetProcessTime()-submit_start;
+        if(benchmark) {
+            uint64_t wait_start=sceKernelGetProcessTime();
+            VK(vkWaitForFences(device,1,&fence,VK_TRUE,2000000000ull));
+            gpu_wait_us=sceKernelGetProcessTime()-wait_start;
+        } else { pending=true; pending_index=index; }
+        timing={sceKernelGetProcessTime()-work_start-retire_us-flip_us,flip_us+retire_us,
+                gpu_wait_us,upload_us,acquire_us,record_us,submit_us};
         first=false;
     }
     ~Impl() {
@@ -223,7 +262,7 @@ struct PS4Video::Impl {
         // All resources are bounded and allocated once; the OS reclaims them on exit.
     }
 };
-PS4Video::PS4Video():p(new Impl) { p->init(); }
+PS4Video::PS4Video(bool benchmark):p(new Impl) { p->benchmark=benchmark; p->init(); }
 PS4Video::~PS4Video() = default;
 void PS4Video::present(const uint32_t* pixels,int w,int h) { p->present(pixels,w,h); }
 PS4VideoTiming PS4Video::timing() const { return p->timing; }

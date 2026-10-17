@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Build a ROM-free PS4 test package from the existing OpenOrbis EBOOT."""
-import hashlib, json, os, shutil, subprocess, struct, zlib
+import hashlib, json, os, shutil, subprocess, struct
 from pathlib import Path
 import xml.etree.ElementTree as ET
 root = Path(__file__).resolve().parents[1]
 sdk = Path(os.environ.get('OO_PS4_TOOLCHAIN', '/opt/openorbis/OpenOrbis/PS4Toolchain'))
 stack = Path(os.environ.get('PS4_STACK', root.parent / 'ScummVM-PS4/.tools/opengnm-stack')).resolve()
-stage = root / 'build/pkg-002'
+stage = root / 'build/pkg-003'
 stage.mkdir(parents=True, exist_ok=True)
 (root / 'dist').mkdir(exist_ok=True)
 tool = sdk / 'bin/linux/PkgTool.Core'
@@ -24,20 +24,22 @@ for name in ('sce_sys/about/right.sprx', 'sce_module/libc.prx', 'sce_module/libS
 for name in ('vulkan-ps4', 'opengnm', 'opengnm-psbc'):
     files.append(copy(stack / name / 'LICENSE', 'licenses/' + name + '.txt'))
 files.append(copy(sdk / 'LICENSE', 'licenses/OpenOrbis.txt'))
-# Original neutral test icon, generated without game art.
-def chunk(kind, data): return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
-rows = b''.join(b'\0' + bytes([24, 40 + y // 4, 100 + y // 4, 255]) * 512 for y in range(512))
-icon = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB',512,512,8,6,0,0,0)) + chunk(b'IDAT',zlib.compress(rows)) + chunk(b'IEND',b'')
-(stage / 'sce_sys/icon0.png').write_bytes(icon)
-files.append('sce_sys/icon0.png')
+# Dashboard icon: 512x512, 8-bit opaque RGB PNG, non-interlaced.
+icon_path=root / 'res/ps4_icon0.png'
+icon=icon_path.read_bytes()
+if icon[:8]!=b'\x89PNG\r\n\x1a\n' or icon[12:16]!=b'IHDR':
+    raise SystemExit('Invalid dashboard PNG')
+if struct.unpack('>IIBBBBB',icon[16:29])!=(512,512,8,2,0,0,0):
+    raise SystemExit('Dashboard icon must be 512x512 RGB8, non-interlaced')
+files.append(copy(icon_path,'sce_sys/icon0.png'))
 sfo = stage / 'sce_sys/param.sfo'
 if sfo.exists(): sfo.unlink()
 run(tool, 'sfo_new', sfo)
 for key, kind, size, value in [
-    ('APP_TYPE','Integer',4,'1'), ('APP_VER','Utf8',8,'00.02'), ('ATTRIBUTE','Integer',4,'0'),
+    ('APP_TYPE','Integer',4,'1'), ('APP_VER','Utf8',8,'00.03'), ('ATTRIBUTE','Integer',4,'0'),
     ('CATEGORY','Utf8',4,'gd'), ('CONTENT_ID','Utf8',48,content), ('DOWNLOAD_DATA_SIZE','Integer',4,'0'),
-    ('SYSTEM_VER','Integer',4,'0'), ('TITLE','Utf8',128,'Mickey & Donald - PS4 Test'),
-    ('TITLE_ID','Utf8',12,'MDCL00001'), ('VERSION','Utf8',8,'00.02')]:
+    ('SYSTEM_VER','Integer',4,'0'), ('TITLE','Utf8',128,'Mickey & Donald Collection'),
+    ('TITLE_ID','Utf8',12,'MDCL00001'), ('VERSION','Utf8',8,'00.03')]:
     run(tool,'sfo_setentry',sfo,key,'--type',kind,'--maxsize',size,'--value',value)
 files.append('sce_sys/param.sfo')
 # Explicit allowlist: roms/ and build/local-roms/ are never packaged.
@@ -56,7 +58,7 @@ for name in files:
 ET.indent(tree)
 tree.write(project, encoding='utf-8', xml_declaration=True)
 run(tool,'pkg_build','project.gp4',stage)
-package = root / 'dist/MickeyDonald-PS4-0.02-Test.pkg'
+package = root / 'dist/MickeyDonald-PS4-0.03-Test.pkg'
 shutil.copyfile(stage / (content + '.pkg'), package)
 run(tool,'pkg_validate',package)
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()

@@ -6,8 +6,10 @@ emulation plus per-game ROM patches; it is not a native decompilation of the gam
 
 The PS4 runner loads all three supported games, renders through native Vulkan,
 and feeds 48 kHz stereo to AudioOut. **Physical PS4 testing is pending.** Current
-shadPS4 tests reach about 50–54 displayed-loop fps; the target of 60 fps with
-roughly 80 fps capacity has not yet been achieved. No ROMs are distributed.
+desktop shadPS4 tests reach about 60 fps. A separate native offscreen test
+measures CPU, audio mixing and GPU completion with an 80 fps capacity target.
+See the PS4 notes for percentile/max timings and limits; full gameplay and
+physical-console performance remain unverified. No ROMs are distributed.
 
 See [PS4 build instructions, controls, ROM paths and test limits](docs/PS4.md).
 The instructions and feature list below describe the upstream PC/Android edition;
