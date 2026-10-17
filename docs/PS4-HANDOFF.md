@@ -28,7 +28,7 @@ exact core-state replay after save/load. Hashes over rendered frames:
 - qs: `305fb6d5df12fe24`
 - woi: `dbcb1327d3d11e80`
 
-Current test PKG: `dist/MickeyDonald-PS4-0.03-Test.pkg` (19,726,336 bytes),
+Previous baseline PKG: `dist/MickeyDonald-PS4-0.03-Test.pkg` (19,726,336 bytes),
 SHA-256 `ef08801120242dfb80f0c9385c416f4938ff859a527ce9bbee68497c8b655a9b`.
 EBOOT SHA-256 `c06bd855d0b434ec6013e87ba84584d83bc274d7e208a1f680ff0c06715b9c50`.
 Earlier 0.01/0.02 packages are preserved. Version 0.03 passed pkg_validate;
@@ -41,7 +41,8 @@ checksums, manifest, README and separate `mickey-donald/roms/`.
 FTP delivery to the user's console completed with full readback of eight files:
 PKG/sidecars in `/data/pkg/`; ROMs and instructions in `/data/mickey-donald/`.
 Receipt: `build/ps4/ftp-receipt.json` (private endpoint details).
-No installation or physical execution was performed.
+No installation or execution was performed by the agent. The user subsequently
+confirmed 0.03 works well on physical PS4, with Castle of Illusion.
 
 Native graphics dependency checkouts (locally patched; revisions alone are not
 sufficient to reproduce the archives):
@@ -85,7 +86,36 @@ see PS4.md for exact paths. The selected ROM path is logged.
 
 The minimum emulator p99 budget now passes, but these short fixtures are not a
 full playthrough or a physical-PS4 guarantee. Longer interactive/worst-case
-coverage is still required; no console installation/execution has occurred.
-Full UI and second-player support are later work. Do not overwrite neighboring
+coverage is still required. User-confirmed Castle operation on 0.03 does not
+verify all three games or the new 0.04 launcher. Settings/save-state UI and
+second-player support are later work. Do not overwrite neighboring
 projects or stop unrelated emulator processes. Audit public history after
 committing and before pushing; keep ROMs, the delivery folder and receipts local.
+
+## Version 0.04 launcher
+
+Default boot now shows all three games with ROM availability/source. Cross starts
+or resumes, Square starts fresh, Triangle rescans; L1/touchpad opens the launcher
+and pauses gameplay. Circle returns to the active game. A game switch discards
+the old session. Persistent save/load controls are not implemented.
+
+Native shadPS4 UI validation: all three games start, menu return/resume works,
+World restarts, rescan works; missing/invalid ROMs stay in the menu. Screenshots
+and logs are private under `build/ps4/launcher-*`. Xvfb is used only for these UI
+checks, not performance acceptance. All four host suites pass. Gameplay pacing
+is unchanged; the 0.03 performance reports above retain their original binary
+identity. Explicit local test-level fixtures still bypass the launcher.
+
+Current PKG: `dist/MickeyDonald-PS4-0.04-Test.pkg` (19,791,872 bytes).
+PKG SHA-256: `44afaeaebc5e8294b48852432d24ef4c19d32ea851aeba849d65535867d797a5`.
+EBOOT SHA-256: `c402f385654c3356af67a2783b6bba5f53df43d98bc031accafb72a7ad05953c`.
+`pkg_validate` and extraction/readback of all 11 allowlisted payloads passed.
+The package contains no ROMs or test fixtures. Private side-by-side delivery
+folder: `dist/MickeyDonald-PS4-0.04/`.
+
+FTP 0.04 delivery completed: `/data/pkg/MickeyDonald-PS4-0.04-Test.pkg` with
+checksum/manifest. The three existing HDD ROMs were read back and matched;
+versioned instructions/checksums were added without replacing 0.03 artifacts.
+All eight files were SHA-256 verified. Receipt:
+`build/ps4/ftp-004-receipt.json`. Installation and physical 0.04 test remain
+for the user; FTP delivery does not install the package.

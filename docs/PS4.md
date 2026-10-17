@@ -15,10 +15,16 @@ frontends are unchanged. This is not yet a complete console edition.
   until a later flip retires an image before rendering into it again. This avoids
   the local ICD's shared semaphore epilogue-buffer reuse bug and redundant idle
   waits. The adapter targets this specific ICD, not arbitrary Vulkan drivers.
-- Auto-starts the first available supported game: Castle, QuackShot, World.
-- L1 cycles available games; R1 resets the current game. D-pad / left stick moves,
-  Square = Mega Drive A, Cross = B, Circle = C, Options = Start.
-- Without ROMs, shows an animated color test pattern; L1 retries ROM loading.
+- Starts in a three-game launcher: Castle of Illusion, QuackShot, World of Illusion.
+  D-pad / left stick selects; Cross starts or resumes, Square starts fresh,
+  Circle returns to the paused game, Triangle rescans ROMs.
+- L1 or touchpad opens the launcher during gameplay and pauses the current game.
+  Switching to another game discards the previous session; returning to the same
+  game resumes it. This is an in-memory pause, not a persistent save state.
+- Cards show HDD/USB/APP source or MISSING/BAD ROM. Missing or invalid ROMs
+  keep the launcher open with a message. Copy ROMs to the paths below and rescan.
+- During gameplay R1 resets; D-pad / left stick moves, Square = Mega Drive A,
+  Cross = B, Circle = C, Options = Start.
 - Native AudioOut: 48 kHz S16 stereo, 512-frame submissions on a dedicated
   consumer thread, an 8192-frame ring and a 3072-frame (64 ms) refill target.
   Audio queue depth controls catch-up after stalls. A two-block deadband
@@ -26,7 +32,8 @@ frontends are unchanged. This is not yet a complete console edition.
   512-sample AudioOut burst. The first GPU draw completes before audio starts. An underrun outputs silence and re-primes the queue.
   Reset and game switching discard queued audio; already submitted hardware
   blocks may finish. Soft reset also resets the shared resampler.
-- One player, no launcher/menu or user save-state UI yet.
+- One player; no settings or user save-state UI yet. The underlying Session
+  supports save/load and is covered by the host ROM smoke test.
 - GPU objects are allocated once and owned until process exit for this diagnostic.
   GPU failures are logged; resources are not freed after a device-lost error.
 
@@ -100,9 +107,9 @@ Outputs:
 
 - `build/ps4/platform/ps4/MickeyDonaldPS4.elf`
 - `build/runtime/eboot.bin`
-- `dist/MickeyDonald-PS4-0.03-Test.pkg`, SHA-256 sidecar and JSON manifest
+- `dist/MickeyDonald-PS4-0.04-Test.pkg`, SHA-256 sidecar and JSON manifest
 
-Title ID: `MDCL00001`; version: `00.03`. Distinct from ScummVM and UT99.
+Title ID: `MDCL00001`; version: `00.04`. Distinct from ScummVM and UT99.
 The package contains a newly generated 512x512 RGB8 dashboard icon and copyright/license notices for
 this project, OpenOrbis, OpenGNM, vulkan-ps4 and opengnm-psbc.
 Icon: `res/ps4_icon0.png`; generation prompt: `res/ps4_icon_prompt.txt`.
@@ -190,11 +197,15 @@ Nonzero stereo output was captured separately for all three games before this
 pacing refinement. The mock AudioOut and presentation tests do not validate
 firmware behavior. Four host suites and all three ROM smoke tests pass.
 
-The 0.03 PKG and separate ROM folder have been delivered by FTP and verified by
-full SHA-256 readback. No physical PS4 execution, audible console test,
-installation or full playthrough has been performed. Longer interactive
-coverage and worst-case stalls remain to be checked. Second-player input,
-launcher/settings and filesystem save UI are also pending.
+The 0.03 PKG and separate ROM folder were delivered by FTP with full SHA-256
+readback. The user subsequently confirmed successful physical PS4 operation
+with Castle of Illusion. This is not a measured console performance result or
+verification of the other two games. Version 0.04 adds the launcher and awaits
+physical-console testing. Its PKG and sidecars have been delivered to `/data/pkg/`
+with full SHA-256 readback; existing ROMs were verified separately. Its native shadPS4 UI test starts all three games,
+returns to the menu, resumes, restarts and rescans. Missing and invalid ROM
+handling is checked separately. Second-player input, settings and filesystem
+save UI remain pending.
 
 ## Public source hygiene
 

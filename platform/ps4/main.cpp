@@ -1,4 +1,5 @@
 #include "rom.h"
+#include "launcher.h"
 #include "video.h"
 #include "audio.h"
 #include "audio_pacing.h"
@@ -36,7 +37,10 @@ struct Pad {
         OrbisPadData state{};
         int rc=scePadReadState(handle,&state);
         if(rc<0 || !state.connected) { previous=pressed=0; return 0; }
-        uint32_t b=state.buttons; pressed=b&~previous; previous=b;
+        uint32_t b=state.buttons;
+        if(state.leftStick.y<80) b|=ORBIS_PAD_BUTTON_UP;
+        if(state.leftStick.y>176) b|=ORBIS_PAD_BUTTON_DOWN;
+        pressed=b&~previous; previous=b;
         uint16_t md=0;
         if((b&ORBIS_PAD_BUTTON_UP)||state.leftStick.y<80) md|=MD_UP;
         if((b&ORBIS_PAD_BUTTON_DOWN)||state.leftStick.y>176) md|=MD_DOWN;
@@ -50,11 +54,31 @@ struct Pad {
     }
 };
 const char* ids[]={"coi","qs","woi"};
+const char* rom_roots[]={"/data/mickey-donald/roms",
+    "/mnt/usb0/mickey-donald/roms","/mnt/usb1/mickey-donald/roms",
+    "/mnt/usb2/mickey-donald/roms","/mnt/usb3/mickey-donald/roms","/app0/roms"};
+std::array<PS4GameEntry,3> scan_games() {
+    std::array<PS4GameEntry,3> games;
+    for(int i=0;i<3;++i) for(const char* root:rom_roots) {
+        auto& entry=games[i];
+        std::string path=std::string(root)+"/"+ids[i]+".bin";
+        FILE* probe=std::fopen(path.c_str(),"rb");
+        if(!probe) continue;
+        std::fclose(probe); entry.path=path;
+        try {
+            auto found=identify_rom(load_rom_file(path.c_str()));
+            if(std::strcmp(found->id(),ids[i])) throw std::runtime_error("ROM filename and CRC differ");
+            entry.ready=true;
+            entry.source=path.find("/data/")==0?"HDD":path.find("/mnt/")==0?"USB":"APP";
+        } catch(const std::exception& e) { entry.source="BAD ROM"; note(e.what()); }
+        // Match the loader: a wrong high-priority ROM is reported, not hidden.
+        break;
+    }
+    note("Launcher ROM scan complete");
+    return games;
+}
 std::unique_ptr<Session> open_game(int index,std::unique_ptr<GameModule>& module) {
-    for(const char* root : {"/data/mickey-donald/roms",
-                            "/mnt/usb0/mickey-donald/roms","/mnt/usb1/mickey-donald/roms",
-                            "/mnt/usb2/mickey-donald/roms","/mnt/usb3/mickey-donald/roms",
-                            "/app0/roms"}) {
+    for(const char* root:rom_roots) {
         std::string path=std::string(root)+"/"+ids[index]+".bin";
         FILE* probe=std::fopen(path.c_str(),"rb");
         if(!probe) continue;
@@ -112,7 +136,7 @@ void benchmark(int frames) {
 }
 int main() {
     report=std::fopen("/data/mickey-donald-ps4.log","w");
-    note("Mickey & Donald PS4 0.03: native Vulkan + 48000 Hz stereo AudioOut");
+    note("Mickey & Donald PS4 0.04: native Vulkan + 48000 Hz stereo AudioOut");
     try {
         vk_ps4_log_open("/data/mickey-donald-vulkan.log");
         if(FILE* fixture=std::fopen("/app0/mdc-benchmark-frames.txt","r")) {
@@ -135,10 +159,19 @@ int main() {
         PS4Audio audio; note("AudioOut initialized: 48000 Hz S16 stereo, 512-frame blocks");
         std::unique_ptr<GameModule> module;
         std::unique_ptr<Session> session;
-        int selected=0;
-        for(int i=0;i<3 && !session;++i) { selected=i; session=open_game(i,module); }
-        if(!session) note("No supported ROM: put coi.bin / qs.bin / woi.bin under /data/mickey-donald/roms or /mnt/usb0/mickey-donald/roms. Showing animated test pattern.");
-        std::vector<uint32_t> test(400*224);
+        int selected=0, active=-1;
+        bool in_menu=true;
+        auto games=scan_games();
+        std::string menu_message;
+        std::vector<uint32_t> menu_pixels;
+        // Explicit local performance fixtures bypass the launcher, never PKGs.
+        if(FILE* fixture=std::fopen("/app0/mdc-test-level.txt","r")) {
+            std::fclose(fixture);
+            for(int i=0;i<3 && !session;++i) { selected=i; session=open_game(i,module); }
+            if(!session) throw std::runtime_error("Test fixture has no valid ROM");
+            active=selected; in_menu=false;
+        }
+        note(in_menu?"Launcher ready":"Local gameplay fixture ready");
         std::vector<int16_t> samples; samples.reserve(2048);
         uint64_t frames=0, emulated=0, window=0, emulated_base=0, start=sceKernelGetProcessTime();
         std::array<uint64_t,300> work_samples{}, core_samples{}, render_samples{};
@@ -146,15 +179,41 @@ int main() {
         std::array<uint64_t,5> stages{};
         for(;;) {
             uint16_t buttons=pad.poll();
-            if(pad.pressed&ORBIS_PAD_BUTTON_L1) {
-                audio.reset(); // Intentional silence while CRC checking/loading the next game.
-                for(int i=1;i<=3;++i) {
-                    int next=(selected+i)%3;
-                    // Destroy the old session before replacing the module it references.
-                    std::unique_ptr<GameModule> next_module;
-                    auto candidate=open_game(next,next_module);
-                    if(candidate) { session.reset(); module=std::move(next_module); session=std::move(candidate); selected=next; window=0; emulated_base=emulated; start=sceKernelGetProcessTime(); flip_total=0; repeated=catchup_frames=0; stages.fill(0); break; }
+            if(!in_menu && (pad.pressed&(ORBIS_PAD_BUTTON_L1|ORBIS_PAD_BUTTON_TOUCH_PAD))) {
+                in_menu=true; selected=active; audio.reset(); menu_message="GAME PAUSED - X OR O TO RESUME";
+                note("Launcher opened; game paused");
+            } else if(in_menu) {
+                if(pad.pressed&ORBIS_PAD_BUTTON_UP) { selected=(selected+2)%3; menu_message.clear(); }
+                if(pad.pressed&ORBIS_PAD_BUTTON_DOWN) { selected=(selected+1)%3; menu_message.clear(); }
+                if(pad.pressed&ORBIS_PAD_BUTTON_TRIANGLE) { games=scan_games(); menu_message="ROM LIST UPDATED"; }
+                if(session && (pad.pressed&(ORBIS_PAD_BUTTON_CIRCLE|ORBIS_PAD_BUTTON_TOUCH_PAD))) {
+                    in_menu=false; selected=active; menu_message.clear();
+                } else if(pad.pressed&(ORBIS_PAD_BUTTON_CROSS|ORBIS_PAD_BUTTON_SQUARE)) {
+                    bool restart=pad.pressed&ORBIS_PAD_BUTTON_SQUARE;
+                    if(session && selected==active && !restart) in_menu=false;
+                    else if(!games[selected].ready) menu_message="ROM MISSING OR INVALID - COPY THEN SCAN";
+                    else {
+                        audio.reset();
+                        try {
+                            std::unique_ptr<GameModule> next_module;
+                            auto candidate=open_game(selected,next_module);
+                            if(!candidate) throw std::runtime_error("ROM removed - scan again");
+                            session.reset(); module=std::move(next_module); session=std::move(candidate);
+                            active=selected; in_menu=false; menu_message.clear();
+                        } catch(const std::exception& e) {
+                            note(e.what()); menu_message="COULD NOT START GAME - CHECK ROM AND SCAN";
+                            games=scan_games();
+                        }
+                    }
                 }
+            }
+            if(in_menu) {
+                ps4_draw_launcher(menu_pixels,selected,active,games,menu_message);
+                video.present(menu_pixels.data(),400,224);
+                // Menu/loading time must not contaminate gameplay timing windows.
+                window=0; emulated_base=emulated; start=sceKernelGetProcessTime();
+                flip_total=0; repeated=catchup_frames=0; stages.fill(0);
+                continue;
             }
             uint64_t core_us=0;
             if(session) {
@@ -180,10 +239,6 @@ int main() {
                 int w,h; const uint32_t* pixels=session->frame(w,h);
                 core_us=sceKernelGetProcessTime()-core_start;
                 video.present(pixels,w,h);
-            } else {
-                for(int y=0;y<224;++y) for(int x=0;x<400;++x)
-                    test[y*400+x]=0xff000000u|((x+frames)%256)<<16|((y*255/223)<<8)|((x/50)%2?255:32);
-                video.present(test.data(),400,224);
             }
             core_samples[window]=core_us; render_samples[window]=video.timing().work_us;
             work_samples[window]=core_us+video.timing().work_us;
