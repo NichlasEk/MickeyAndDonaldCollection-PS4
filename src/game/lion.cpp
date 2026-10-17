@@ -3,6 +3,7 @@
 #include "common.h"
 #include "wide_map.h"
 #include "lion_sprites.h"
+#include "lion_stampede.h"
 #include "../core/md.h"
 #include <algorithm>
 namespace {
@@ -20,8 +21,13 @@ bool playing(const MegaDrive& md) {
 }
 // Only replace the extension pixels. Original VRAM, collision maps, camera,
 // centre image and the game's own streamer are left intact.
-void line(void* host,int y,uint8_t* a,uint8_t*,uint8_t* sprites) {
+void line(void* host,int y,uint8_t* a,uint8_t* b,uint8_t* sprites) {
     auto& view=*static_cast<WideMapView*>(host);auto& md=*view.md;auto& v=md.vdp;
+    if(lion_stampede::active(md)) {
+        view.gameplay=true;view.left=view.right=0;
+        if(v.ext)lion_stampede::line(md,y,a,b);
+        return;
+    }
     if(y==0) view.gameplay=playing(md);
     if(!playing(md)) return;
     lion_sprites::line(md,y,sprites);
@@ -47,7 +53,12 @@ void line(void* host,int y,uint8_t* a,uint8_t*,uint8_t* sprites) {
 class Lion final:public GameModule {
  WideMapView view;
 public:
- void pre_frame(MegaDrive&,const GameConfig&) override {view.gameplay=false;}
+ void pre_frame(MegaDrive& md,const GameConfig& c) override {
+    view.gameplay=false;
+    // Normalise H32 presentation to the same 400-pixel canvas at 16:9.
+    // The original 256 pixels remain untouched and centred; no CPU/ROM changes.
+    if(md.vdp.ext>0) md.vdp.ext=c.ext && lion_stampede::active(md)?c.ext+32:c.ext;
+ }
  const char* id() const override {return "lion";}
  const char* title() const override {return "The Lion King";}
  const char* subtitle() const override {return "Simba";}
@@ -89,7 +100,8 @@ public:
  }
  bool can_configure(const MegaDrive& md,const GameConfig& c) const override {(void)c;return patches_safe(md,{});}
  void post_frame(MegaDrive& md,const GameConfig& c,FrameInfo& f) override {
-    (void)md;(void)c;f.gameplay=view.gameplay;
+    lion_stampede::finish(md,c.ext);
+    f.gameplay=view.gameplay;
   // Keep the visible image centred at either level boundary. Session eases
   // both masks open together as the camera moves into the level.
   f.mask_left=f.mask_right=std::max(view.left,view.right);

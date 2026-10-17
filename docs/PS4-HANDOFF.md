@@ -1,3 +1,26 @@
+# Latest local feature: Stampede reconstructed widescreen
+
+Stampede now presents 400x224 without stretching its original 256-pixel centre.
+Its source contains three pre-rendered canyon cels, not a wider world map.
+The added sides reflect original canyon-wall artwork and repeat the sky cel.
+This is reconstructed decorative scenery, NOT additional playable level area.
+H32/H40 transitions are recentered to avoid a one-frame width jump at death.
+Pride Rock already had widescreen and was explicitly reverified as requested.
+
+`lion_stampede_verify` passes 1200 frames each for entries 3 and 9: original
+centre, emulated RAM and CPU PC match narrow mode, including death transition;
+state and full-image replay pass. All ten Lion entry tests pass in
+`build/lion-stampede/matrix-final/results.json`. Six host suites and the continue
+regression pass. Native visual captures exist for both levels under
+`build/lion-stampede/native-3.png` and `native-9.png`.
+Capacity run: 208.39 / 241.12 fps, p99 6104 / 8387 us (before a diagnostic-only
+zero-extension guard correction). Normal display run uses the final EBOOT;
+see `build/lion-stampede/display.log` for 60 Hz and audio evidence.
+Final EBOOT SHA-256:
+`4a1a2c8d801c1710a78bda099c187da8509f6618cfda7b482a9928572b6bf830`.
+No new PKG or FTP delivery; uploaded 0.08 below still has original-width
+Stampede. Physical-console acceptance remains pending.
+
 # Latest delivery: 0.08 menu title and both graphics fixes
 
 Main menu now reads MICKEY & DONALD / ALADDIN & THE LION KING.

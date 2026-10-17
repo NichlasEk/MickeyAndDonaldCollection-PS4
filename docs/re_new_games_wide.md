@@ -49,8 +49,10 @@ map reconstruction. Narrow Abu arenas are masked to their actual map width.
 Aladdin also masks the first 16 map pixels: this guard column contains edge
 artifacts outside the intended visible area, observed in native captures.
 
-**Lion King's Stampede keeps its original viewport.** Its H32 perspective mode
-requires a separate implementation. Other cutscenes/bonus modes, sprite spawning
+**Lion King's Stampede now has a reconstructed 400x224 presentation.** Its
+original 256-pixel centre is unchanged; reflected canyon-wall artwork extends
+the sides, and the sky cel repeats. These are decorative extensions, not new
+level geometry or a wider playable area. See the Stampede section below. Other cutscenes/bonus modes, sprite spawning
 near the new edges and complete playthroughs still need broader manual coverage.
 The sampled pixel oracle verifies foreground reconstruction, not all gameplay
 or all background/sprite behavior.
@@ -153,3 +155,24 @@ the VDP layout unchanged. Only an object with the normal camera descriptor
 fall back to the original viewport. The private-fixture host target
 `lion_continue_verify ROM SESSION_STATE` verifies clean gutters, unchanged centre,
 YES returning to gameplay widescreen and save-state replay.
+
+## Stampede presentation and Pride Rock verification
+
+Stampede's H32 nametable is 128x32 tiles: three pre-rendered 256-pixel canyon
+animation cels, followed by a 256-pixel sky cel. Naive extension crosses into
+a different cel. `lion_stampede.h` samples reflected wall artwork from the
+current cel and wraps the sky within its own cel. Centre pixels and sprites
+are unscaled. At the 16:9 setting, 72 native pixels are added per side, making
+400x224. Only presentation state changes; ROM, CPU, collisions and object spawn
+limits remain original. H32/H40 transitions recenter the framebuffer once to
+avoid a 464-pixel flash at death. The existing mode-off diagnostic remains
+untouched. This is deliberately described as reconstructed scenery, not
+previously unseen original artwork.
+
+`build/host/lion_stampede_verify build/local-roms/lion.bin` covers both Stampede
+and Pride Rock for 1200 frames each with changing controls, compares the entire
+original centre, all emulated RAM and CPU PC against normal width, and verifies
+30-frame state plus full-image replay. Stampede includes a death/mode transition.
+The general level matrix uses the actual centre offset rather than assuming
+40 pixels for all modes; the Stampede map oracle is replaced by these dedicated
+presentation checks because this scene has no side-scrolling level map.
