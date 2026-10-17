@@ -18,7 +18,7 @@
 #endif
 
 namespace {
-struct BpHit { uint32_t frame, pc, sr, pad; uint32_t regs[16]; };
+struct BpHit { uint32_t frame, pc, sr, line; uint32_t regs[16]; };
 struct WatchHit { uint32_t frame, pc, addr, value; };
 
 struct Tool {
@@ -239,7 +239,7 @@ API void mdt_bp_add(void* h, uint32_t addr) {
     t->md.add_pc_hook(addr, [t](MegaDrive& md) {
         if (t->bp_log.size() >= t->log_limit) return;
         BpHit b;
-        b.frame = (uint32_t)md.frame_count; b.pc = md.cpu.pc; b.sr = md.cpu.get_sr(); b.pad = 0;
+        b.frame = (uint32_t)md.frame_count; b.pc = md.cpu.pc; b.sr = md.cpu.get_sr(); b.line = uint32_t(md.vdp.line);
         memcpy(b.regs, md.cpu.r, sizeof(b.regs));
         t->bp_log.push_back(b);
     });

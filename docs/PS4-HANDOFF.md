@@ -1,3 +1,17 @@
+# Latest follow-up: Lion input timing
+
+See [timing investigation](re_lion_input_timing.md). Lion now latches controller
+input at VBlank; this removes the known 240-frame Elephant Graveyard divergence.
+A causal negative-control test reproduces the old failure, then passes with the
+latch. All ten Lion unpatched-clip baseline cases and fresh-session state replay
+pass. The longer 1200-frame test still fails: a later whole-frame phase delay
+remains. Do not claim full game-timing equivalence or make a release from these
+results alone. No new PKG/FTP or physical-console test was performed.
+
+Current EBOOT SHA-256:
+`95f75a345aec1efa8245198078b312c70ee25f6d8455b8c32f19b87809c28b62`.
+The following records earlier branch work; their hashes are historical.
+
 # Current research branch — 2026-10-17
 
 Current branch: `ps4/widescreen-aladdin-lion`, based on stable `2151947`.

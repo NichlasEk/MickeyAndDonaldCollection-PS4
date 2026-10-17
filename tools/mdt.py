@@ -272,7 +272,7 @@ class MD:
         for i in range(n):
             w = buf[i * 20:(i + 1) * 20]
             regs = w[4:20]
-            hits.append({'frame': w[0], 'pc': w[1], 'sr': w[2],
+            hits.append({'frame': w[0], 'pc': w[1], 'sr': w[2], 'line': w[3],
                          **{'d%d' % j: regs[j] for j in range(8)},
                          **{'a%d' % j: regs[8 + j] for j in range(8)}})
         return hits

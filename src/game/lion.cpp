@@ -78,6 +78,21 @@ public:
  }
  void configure(MegaDrive& md,const GameConfig& c) override {
     apply_patches(md,patches(c.ext));view.md=&md;md.vdp.hook_host=&view;md.vdp.line_hook=line;
+    // Lion polls the pad after its VBlank DMA queue. Extra edge sprites can
+    // move that poll past line 261 into the next host frame. Latch host input
+    // at VBlank, keeping it stable across that boundary, so DMA cost cannot
+    // select a different input sample. Both width modes use the same policy.
+    // Pending/latched buttons live in serialized module_state, not this object.
+    md.on_frame_start=[](MegaDrive& m) {
+        m.module_state[0]=uint32_t(m.pad_buttons[0])|(uint32_t(m.pad_buttons[1])<<16);
+        m.set_pad(0,uint16_t(m.module_state[1]));
+        m.set_pad(1,uint16_t(m.module_state[1]>>16));
+    };
+    md.on_vblank=[](MegaDrive& m) {
+        m.module_state[1]=m.module_state[0];
+        m.set_pad(0,uint16_t(m.module_state[1]));
+        m.set_pad(1,uint16_t(m.module_state[1]>>16));
+    };
  }
  bool can_configure(const MegaDrive& md,const GameConfig& c) const override {return patches_safe(md,patches(c.ext));}
  void post_frame(MegaDrive& md,const GameConfig& c,FrameInfo& f) override {

@@ -5,6 +5,10 @@ The source identifies itself as 0.06 research. No new package or console deliver
 is implied by these tests. Original PC/Android launchers still have three games;
 the PS4 launcher has five, with independent persistent save slots for each.
 
+The original Elephant Graveyard input-boundary divergence now has a targeted
+fix; see [the timing investigation](re_lion_input_timing.md). The longer
+1200-frame comparison still fails and remains an explicit research limit.
+
 ## Method
 
 The normal H40 image grows from 320×224 to 400×224 (40 pixels per side).
@@ -83,7 +87,9 @@ Changing sprite limits alone did not remove the divergence. This establishes
 the ROM sprite-submission patch as the trigger; altered emulated timing is the
 working explanation, not proven full-game equivalence. Preserve this finding:
 manual playthrough and game-timing review remain necessary before calling this
-production-ready. Reproduce with `--unpatched-baseline` (expected nonzero exit).
+production-ready. This is historical evidence from before the input-latch fix. The current
+240-frame Lion `--unpatched-baseline` passes; the dedicated 1200-frame timing
+test still fails. See the follow-up for the distinction.
 
 Five host unit suites and all five ROM smoke tests passed. The isolated
 shadPS4 UI test started both additions and saved/loaded both slots; evidence:
