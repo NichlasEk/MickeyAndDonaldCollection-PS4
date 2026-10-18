@@ -1,5 +1,13 @@
 # Mickey & Donald Collection — experimental PS4 port
 
+**PS4 download: [0.11 public test release — ready-to-install PKG](https://github.com/NichlasEk/MickeyAndDonaldCollection-PS4/releases/tag/ps4-v0.11)**
+
+The release supports all five games, including The Lion King and Aladdin Final Cut.
+See the [PS4 quick start](docs/PS4-QUICKSTART.md) for installation, ROM versions,
+HDD/USB paths and savestates. No ROMs are included. The release source is tagged
+[`ps4-v0.11`](https://github.com/NichlasEk/MickeyAndDonaldCollection-PS4/tree/ps4-v0.11);
+the default branch below retains the older three-game baseline.
+
 OpenOrbis/Vulkan port of [Darhkfox's collection](https://github.com/Darhkfox/MickeyAndDonaldCollection).
 The original MIT license and attribution are retained. This uses Mega Drive
 emulation plus per-game ROM patches; it is not a native decompilation of the games.
