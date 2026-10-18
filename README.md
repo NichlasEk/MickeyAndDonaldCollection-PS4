@@ -1,5 +1,10 @@
 # Mickey & Donald Collection — experimental PS4 port
 
+**PS4 download: [0.11 public test release — ready-to-install PKG](https://github.com/NichlasEk/MickeyAndDonaldCollection-PS4/releases/tag/ps4-v0.11)**
+
+See the [PS4 quick start](docs/PS4-QUICKSTART.md) for installation, exact ROM versions,
+HDD/USB paths and save controls. No ROMs are included.
+
 OpenOrbis/Vulkan port of [Darhkfox's collection](https://github.com/Darhkfox/MickeyAndDonaldCollection).
 The original MIT license and attribution are retained. This uses Mega Drive
 emulation plus per-game ROM patches; it is not a native decompilation of the games.
@@ -7,11 +12,11 @@ emulation plus per-game ROM patches; it is not a native decompilation of the gam
 This research branch adds The Lion King and Aladdin Final Cut with experimental
 400×224 widescreen; see [implementation and test limits](docs/re_new_games_wide.md).
 The PS4 runner loads all five supported games, renders through native Vulkan,
-and feeds 48 kHz stereo to AudioOut. Version 0.03 has been tested successfully by the user on a physical PS4 with Castle of Illusion. The 0.05 launcher with persistent save/load awaits console testing. Current
-desktop shadPS4 tests reach about 60 fps. A separate native offscreen test
-measures CPU, audio mixing and GPU completion with an 80 fps capacity target.
-See the PS4 notes for percentile/max timings and limits; full gameplay and
-measured physical-console performance remain unverified. No ROMs are distributed.
+and feeds 48 kHz stereo to AudioOut. Public test build 0.11 adds full-width level
+starts to the widescreen gameplay, menus, carousel and persistent savestates.
+Earlier builds ran on a physical PS4; the latest scenery changes have automated
+host tests and native shadPS4 checks, with physical-console acceptance pending.
+No ROMs are distributed. See the quick start for supported revisions and limits.
 
 See [PS4 build instructions, controls, ROM paths and test limits](docs/PS4.md).
 The instructions and feature list below describe the upstream PC/Android edition;

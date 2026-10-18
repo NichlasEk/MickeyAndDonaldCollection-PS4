@@ -37,7 +37,7 @@ frontends are unchanged. This is not yet a complete console edition.
 - In the launcher, R1 saves the selected paused game; L1 loads the selected
   game's slot and stays paused. Cross/Circle resumes after loading. A SAVE badge
   means a file exists, not that it has been validated yet.
-- One slot per game at `/data/mickey-donald/saves/{coi,qs,woi}.state`.
+- One slot per game at `/data/mickey-donald/saves/{coi,qs,woi,lion,aladdin}.state`.
   Saving replaces that game's slot; no automatic save on exit or game switching.
   Slots are shared by console users and remain on HDD when ROMs are on USB.
   A bounded, versioned checksum wrapper rejects damaged files. Writes flush and
@@ -122,9 +122,9 @@ Outputs:
 
 - `build/ps4/platform/ps4/MickeyDonaldPS4.elf`
 - `build/runtime/eboot.bin`
-- `dist/MickeyDonald-PS4-0.05-Test.pkg`, SHA-256 sidecar and JSON manifest
+- `dist/MickeyDonald-PS4-0.11-Test.pkg`, SHA-256 sidecar and JSON manifest
 
-Title ID: `MDCL00001`; version: `00.05`. Distinct from ScummVM and UT99.
+Title ID: `MDCL00001`; version: `00.11`. Distinct from ScummVM and UT99.
 The package contains a newly generated 512x512 RGB8 dashboard icon and copyright/license notices for
 this project, OpenOrbis, OpenGNM, vulkan-ps4 and opengnm-psbc.
 Icon: `res/ps4_icon0.png`; generation prompt: `res/ps4_icon_prompt.txt`.
