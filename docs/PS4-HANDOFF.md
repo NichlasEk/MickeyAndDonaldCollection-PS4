@@ -1,3 +1,19 @@
+# Public GitHub release: PS4 0.11
+
+Published public prerelease `ps4-v0.11`:
+https://github.com/NichlasEk/MickeyAndDonaldCollection-PS4/releases/tag/ps4-v0.11
+Tag points to package source `5ecae2c3c9b49f1dede782a80e67544c5200c727`.
+Assets: the unchanged 0.11 PKG, SHA-256 sidecar, build manifest and
+`INSTALL-PS4-0.11.txt`. All four were downloaded from GitHub and hash-compared
+with their local originals. Exact package payload audit covers nine manifest
+files plus the package-generated 96-byte keystone; no ROM/save/test fixtures.
+Evidence: `build/public-release-011/readback-verified.json`.
+
+`docs/PS4-QUICKSTART.md` contains the public setup/ROM/control guide. Both the
+feature branch and default branch README link to the release; default branch
+received documentation only (`a585e90`), not a gameplay-code merge. Release is
+explicitly a public test build; latest physical-console acceptance is pending.
+
 # Latest delivery: 0.11 full-width level starts
 
 Uploaded to `192.168.32.229:2121` at
