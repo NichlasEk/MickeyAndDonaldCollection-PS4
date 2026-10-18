@@ -35,10 +35,10 @@ void line(void* host,int y,uint8_t* a,uint8_t* b,uint8_t* sprites) {
     lion_sprites::line(md,y,sprites);
     unsigned cam=rw(md,0xffcd36), stride=rw(md,0xffcd1e), rows=rw(md,0xffcd20);
     unsigned map=rl(md,0xffcd22)&0xffffff, defs=rl(md,0xffcd2a)&0xffffff;
-    int cx=wide_map_x(v,y,0,rw(md,cam+8)), cy=wide_map_y(v,0,rw(md,cam+10)), wy=cy+y;
+    int cx=wide_map_x(v,y,0,int16_t(rw(md,cam+8))), cy=wide_map_y(v,0,int16_t(rw(md,cam+10))), wy=cy+y;
     if(y==0) {view.left=std::clamp(v.ext-cx,0,v.ext);view.right=std::clamp(cx+320+v.ext-int(stride*8),0,v.ext);}
     if(!v.ext) return;
-    if(map<0xff0000 || map+stride*rows>0x1000000 || defs>=md.rom.size() || wy<0 || wy>=int(rows*16)) return;
+    if(map<0xff0000 || map+stride*rows>0x1000000 || defs>=md.rom.size() || wy<0 || wy>=int(rows*16)) {view.boundary_filled=false;return;}
     for(int side=0;side<2;++side) {
         int end=side?320+v.ext:0;
         for(int sx=side?320:-v.ext;sx<end;) {
@@ -46,17 +46,18 @@ void line(void* host,int y,uint8_t* a,uint8_t* b,uint8_t* sprites) {
             if(wx<0 || wx>=int(stride*8)) { std::fill(a+sx+v.ext,a+sx+v.ext+n,0);sx+=n;continue; }
             unsigned block=rw(md,map+(wy/16)*stride+(wx/16)*2)&0xfffe;
             unsigned entry=defs+block+((wy/8)&1)*4+((wx/8)&1)*2;
-            if(entry+1>=md.rom.size()) return;
+            if(entry+1>=md.rom.size()) {view.boundary_filled=false;return;}
             uint8_t pixels[8];v.pattern_row(md.rom16(entry),wy&7,pixels);
             std::copy(pixels+(wx&7),pixels+(wx&7)+n,a+sx+v.ext);sx+=n;
         }
     }
+    view.boundary_filled &= wide_map_boundary(v,cx,0,int(stride*8),a,b,sprites);
 }
 class Lion final:public GameModule {
  WideMapView view;
 public:
  void pre_frame(MegaDrive& md,const GameConfig& c) override {
-    view.gameplay=false;view.menu=false;
+    view.gameplay=false;view.menu=false;view.boundary_filled=true;
     // Normalise H32 presentation to the same 400-pixel canvas at 16:9.
     // The original 256 pixels remain untouched and centred; no CPU/ROM changes.
     if(md.vdp.ext>0) md.vdp.ext=c.ext && lion_stampede::active(md)?c.ext+32:c.ext;
@@ -104,9 +105,10 @@ public:
  void post_frame(MegaDrive& md,const GameConfig& c,FrameInfo& f) override {
     lion_stampede::finish(md,c.ext);
     f.gameplay=view.gameplay;f.menu_widescreen=view.menu;
-  // Keep the visible image centred at either level boundary. Session eases
-  // both masks open together as the camera moves into the level.
-  f.mask_left=f.mask_right=std::max(view.left,view.right);
+  // Fully reconstructed boundaries can open immediately. Retain the original
+  // symmetric masks if any scanline could not safely supply its scenery.
+  f.boundary_widescreen=f.gameplay && view.boundary_filled;
+  f.mask_left=f.mask_right=view.boundary_filled?0:std::max(view.left,view.right);
  }
 };
 }

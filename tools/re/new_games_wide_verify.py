@@ -31,6 +31,7 @@ def oracle(path,game,state,info):
     def r32(addr):return r16(addr)*65536+r16(addr+2)
     if game=='lion':
         cam=r16(0xcd36|0xff0000);cx=r16(0xff0000+cam+8);cy=r16(0xff0000+cam+10)
+        cx=(cx+32768)%65536-32768;cy=(cy+32768)%65536-32768
         stride=r16(0xffcd1e);height=r16(0xffcd20)*16;width=stride*8
         defs=r32(0xffcd2a)&0xffffff;mapbase=r32(0xffcd22)&0xffffff;bank=0
         def cell(tx,ty):return defs+(r16(mapbase+ty//2*stride+tx//2*2)&0xfffe)+(ty&1)*4+(tx&1)*2
@@ -57,7 +58,7 @@ def oracle(path,game,state,info):
     checked=bad=0
     for y in range(h):
         for x in list(range(info['mask_left'],40))+list(range(w-40,w-info['mask_right'])):
-            if not repeat and not (0<=cx+x-40<width and 0<=cy+y<height):continue
+            if not repeat and not ((16 if game=='aladdin' else 0)<=cx+x-40<width and 0<=cy+y<height):continue
             checked+=1;bad+=p[y*w+x]!=q[y*w+x]
     return checked,bad
 

@@ -26,6 +26,7 @@ void line(void* host,int y,uint8_t* a,uint8_t* b,uint8_t* sprites) {
  // Rug Ride uses a fully populated, repeating plane, not the collision map.
  if(md.ram[0x7e36]==8) {view.left=view.right=0;return;}
  int bank=md.ram[0xf695]?1:0;
+ uint8_t* original_a=a;
  if(bank) a=b; // Dungeon foreground lives on plane B.
  int cx=wide_map_x(v,y,bank,md.ram16(0x7e06)+16),cy=wide_map_y(v,bank,md.ram16(0x7e08)+16),wy=cy+y;
  int width=md.ram16(0x7dc8),height=md.ram16(0x7dcc);
@@ -33,9 +34,9 @@ void line(void* host,int y,uint8_t* a,uint8_t* b,uint8_t* sprites) {
  if(y==0) {view.left=std::clamp(v.ext+16-cx,0,v.ext);view.right=std::clamp(cx+320+v.ext-width,0,v.ext);}
  if(!v.ext) return;
  unsigned defs=md.ram32(0x7dce)&0xffffff;
- if(wy<0 || wy>=height || 0x9896+(wy/16)*64+3>=0x10000 || defs>=md.rom.size()) return;
+ if(wy<0 || wy>=height || 0x9896+(wy/16)*64+3>=0x10000 || defs>=md.rom.size()) {view.boundary_filled=false;return;}
  unsigned row=md.ram32(0x9896+(wy/16)*64)&0xffffff;
- if(row<0xff0000 || row+unsigned(width/8)>0x1000000) return;
+ if(row<0xff0000 || row+unsigned(width/8)>0x1000000) {view.boundary_filled=false;return;}
  for(int side=0;side<2;++side) {
   int end=side?320+v.ext:0;
   for(int sx=side?320:-v.ext;sx<end;) {
@@ -43,16 +44,17 @@ void line(void* host,int y,uint8_t* a,uint8_t* b,uint8_t* sprites) {
    if(wx<16 || wx>=width) {std::fill(a+sx+v.ext,a+sx+v.ext+n,0);sx+=n;continue;}
    unsigned block=md.ram16(row+(wx/16)*2);
    unsigned entry=defs+block+((wy/8)&1)*4+((wx/8)&1)*2;
-   if(entry+1>=md.rom.size()) return;
+   if(entry+1>=md.rom.size()) {view.boundary_filled=false;return;}
    uint8_t pixels[8];v.pattern_row(md.rom16(entry),wy&7,pixels);
    std::copy(pixels+(wx&7),pixels+(wx&7)+n,a+sx+v.ext);sx+=n;
   }
  }
+ view.boundary_filled &= wide_map_boundary(v,cx,16,width,original_a,b,sprites);
 }
 class Aladdin final:public GameModule {
  WideMapView view;
 public:
- void pre_frame(MegaDrive&,const GameConfig&) override {view.gameplay=false;view.menu=false;}
+ void pre_frame(MegaDrive&,const GameConfig&) override {view.gameplay=false;view.menu=false;view.boundary_filled=true;}
  const char* id() const override {return "aladdin";}
  const char* title() const override {return "Aladdin - Final Cut";}
  const char* subtitle() const override {return "ALADDIN-REMIX";}
@@ -87,9 +89,10 @@ public:
  bool can_configure(const MegaDrive& md,const GameConfig& c) const override {return patches_safe(md,patches(c.ext));}
  void post_frame(MegaDrive& md,const GameConfig& c,FrameInfo& f) override {
   (void)md;(void)c;f.gameplay=view.gameplay;f.menu_widescreen=view.menu;
-  // Keep the visible image centred at either level boundary. Session eases
-  // both masks open together as the camera moves into the level.
-  f.mask_left=f.mask_right=std::max(view.left,view.right);
+  // Fully reconstructed boundaries can open immediately. Retain the original
+  // symmetric masks if any scanline could not safely supply its scenery.
+  f.boundary_widescreen=f.gameplay && view.boundary_filled;
+  f.mask_left=f.mask_right=view.boundary_filled?0:std::max(view.left,view.right);
  }
 };
 }

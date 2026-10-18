@@ -1,3 +1,23 @@
+# Latest local feature: full-width level starts in Lion and Aladdin
+
+The horizontal space beyond either map endpoint now contains reconstructed
+scenery, anchored to the world boundary and scrolled away as real map pixels
+enter view. Sprites are never reflected. Original pixels and game execution
+remain unchanged; this is decorative space, not a larger playable level.
+Simba's Return's x=-3 camera start is now interpreted as signed, fixing its
+otherwise persistent masks. Invalid map rows/layouts retain protective masks.
+No save format change. See `docs/re_new_games_wide.md` for exact scope/tests.
+
+All 21 entry tests and tile-map oracle cases pass; original centre/RAM/CPU PC
+and state/image replay are checked. Six host suites, continue and menu fixtures
+pass. Native start captures were visually checked in shadPS4. Private evidence:
+`build/start-wide/`. Capacity probes exceed 80 fps for both level-0 fixtures;
+these do not certify physical PS4 performance.
+EBOOT SHA-256:
+`4f4fd8f3e1f596b478b31de464db9753d8e6f96c875e45575111574b553fa495`.
+No new package/FTP delivery yet: 0.10 below does not contain this feature.
+Physical-console acceptance remains pending.
+
 # Latest delivery: 0.10 widescreen menu backgrounds
 
 Uploaded to `192.168.32.229:2121` at

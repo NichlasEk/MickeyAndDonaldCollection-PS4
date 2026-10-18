@@ -237,3 +237,52 @@ build/menu-wide/trace-current ROM CORE_STATE --start
 
 The optional third argument exercises START after 60 frames, then runs to 1200.
 The tool prints hashes only. All ROMs, fixtures, captures and binaries stay local.
+
+## Decorative scenery at level boundaries (successor to 0.10)
+
+Lion and Aladdin now fill the horizontal space outside their world maps with
+reflected scenery planes. The reflection is anchored to the world boundary,
+not the viewport edge, so the reconstructed strip scrolls out of view naturally.
+Pixels inside the real map use the normal widescreen renderer immediately.
+Only extension pixels are changed; the original viewport is untouched. Sprites
+are cleared in the decorative strip rather than reflected, so actors, enemies,
+HUD elements and sprite items are not duplicated. Tile-based scenery is reflected
+and is decorative: it adds no collision, objects, spawning or playable area.
+This applies at either horizontal endpoint, including starts at the right edge.
+
+`wide_map_boundary` runs after both foreground extensions are populated. Its
+source indices must lie inside the rendered line; invalid geometry/rows keep the
+old symmetric masks for that frame. Aladdin's first 16 map pixels remain a guard
+column, not real scenery. Dungeon preserves its foreground-on-plane-B layout.
+Rug Ride and Stampede retain their existing specialised renderers.
+`FrameInfo::boundary_widescreen` opens completed scenery immediately, avoiding
+the old several-frame mask opening when starting/loading a level. No time-based
+cache, core state field, ROM patch or save format change was added.
+
+Lion camera coordinates are signed words. Simba's Return begins at x=-3; reading
+that as 65533 previously made both boundaries look invalid. The renderer and
+map oracle now sign-extend these camera values. The map oracle also excludes
+Aladdin's 16-pixel guard when checking real-map pixels; reconstructed pixels
+must not be compared to that invalid source column.
+
+Verification, with private artifacts under `build/start-wide/`:
+
+- `start_wide_verify ROM OUTPUT_PREFIX` visits all 10 Lion and 11 Aladdin entries.
+  Each runs 600 frames (120 stationary, then movement/jump and reversal), checks
+  every original-centre pixel plus RAM/CPU PC against the same ROM patches with
+  extension rendering disabled, requires visible initial sides, and checks
+  30-frame full-state and full-image replay. Includes start/scroll captures.
+- Real-map tile oracle: all 21 entries pass, 120 frames each. Final signed-camera
+  Lion evidence is `matrix-lion-final/results.json`; Aladdin is in
+  `matrix-final/results.json`. Reconstructed scenery is excluded from this
+  real-map oracle by world bounds, not by hiding visible valid-map pixels.
+- Six host suites, Lion continue regression and ten menu fixtures pass.
+- Native OpenOrbis build and shadPS4 captures of stationary level-0 starts pass:
+  `native-lion.png`, `native-aladdin.png`. Captures were visually inspected.
+- Capacity probes (600 frames, level 0, shadPS4, while other local checks ran):
+  Lion 324.70 fps, p99 4941 us, max 5207 us; Aladdin 386.74 fps, p99 4177 us,
+  max 4531 us. `capacity.log` links the detailed results. This is emulator
+  capacity evidence, not real-console or display pacing acceptance.
+
+Transient invalid layouts still close the protective masks. This intentionally
+favours a safe frame during scene changes over displaying unverified VRAM.

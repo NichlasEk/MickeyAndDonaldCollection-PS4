@@ -22,5 +22,32 @@ struct WideMapView {
     MegaDrive* md=nullptr;
     bool gameplay=false;
     bool menu=false;
+    bool boundary_filled=true;
     int left=0,right=0;
 };
+
+// Reconstruct only pixels outside the horizontal world boundary. Reflect the
+// already rendered scenery about that fixed boundary, not the moving viewport.
+// As the camera scrolls, the seam moves naturally offscreen, one pixel at a time.
+// Sprites are never copied; the extension is decorative, not playable space.
+inline bool wide_map_boundary(const VDP& v,int camera,int lo,int hi,
+                              uint8_t* a,uint8_t* b,uint8_t* sprites) {
+    const int e=v.ext,w=v.active_width();
+    // Validate all sources before modifying any line, including unusual camera
+    // positions during transitions. The caller keeps its masks on failure.
+    for(int x=-e;x<w+e;++x) {
+        if(x>=0 && x<w)continue;
+        int world=camera+x;
+        if(world>=lo && world<hi)continue;
+        int source=(world<lo ? 2*lo-1-world : 2*hi-1-world)-camera;
+        if(source < -e || source >= w+e)return false;
+    }
+    for(int x=-e;x<w+e;++x) {
+        if(x>=0 && x<w)continue;
+        int world=camera+x;
+        if(world>=lo && world<hi)continue;
+        int source=(world<lo ? 2*lo-1-world : 2*hi-1-world)-camera;
+        a[x+e]=a[source+e];b[x+e]=b[source+e];sprites[x+e]=0;
+    }
+    return true;
+}

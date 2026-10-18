@@ -94,6 +94,7 @@ void Session::run_frame(uint16_t pad1, uint16_t pad2) {
     // coming back they open gradually so it doesn't pop. A mask that has to grow (the view widened
     // next to a level edge, a state loaded there) closes at once too: what it covers is outside the level.
     if (!info_.gameplay) mask_l_ = mask_r_ = info_.menu_widescreen ? 0.0f : (float)cfg_.ext;
+    if (info_.gameplay && info_.boundary_widescreen) mask_l_ = mask_r_ = 0;
     const float speed = std::max(2.0f, cfg_.ext / 6.0f);
     auto ease = [&](float& cur, int target) {
         if (cur < target) cur = (float)target;
