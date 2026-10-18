@@ -1,3 +1,19 @@
+# Latest delivery: 0.11 full-width level starts
+
+Uploaded to `192.168.32.229:2121` at
+`/data/pkg/MickeyDonald-PS4-0.11-Test.pkg` with manifest and checksum sidecar.
+Includes decorative level-boundary scenery for Lion and Aladdin, the signed
+Lion camera correction, widescreen menus and all previous fixes. Existing saves
+remain compatible. No ROMs are bundled.
+Package SHA-256: `ecc5c5105ad773e061a0b9fbfec1f4ea5f6695da55571ab15f7971a17bb25d49`.
+EBOOT SHA-256: `db2677a27ad93a33464c7688e6f0d785fbc17487e40d5eafd3a6a7fc820a8f3c`.
+Native release build and PkgTool validation pass. All nine extracted filesystem
+payloads match the manifest and current runtime. All three FTP uploads were
+read back and SHA-256 verified before rename to their final filenames.
+Evidence: `build/release-011-ftp.json`, `build/release-011-package.log`.
+This supersedes the local-only status below. Installation and physical-console
+acceptance of the reconstructed level boundaries remain pending.
+
 # Latest local feature: full-width level starts in Lion and Aladdin
 
 The horizontal space beyond either map endpoint now contains reconstructed
