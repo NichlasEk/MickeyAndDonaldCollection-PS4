@@ -286,3 +286,27 @@ Verification, with private artifacts under `build/start-wide/`:
 
 Transient invalid layouts still close the protective masks. This intentionally
 favours a safe frame during scene changes over displaying unverified VRAM.
+
+
+## Immediate Aladdin level fade (0.12)
+
+Aladdin's initial palette fade clears the VBlank wait flag FF7E2E for 16
+frames while the level is already visible. The old gameplay predicate closed
+both side masks for the first 15 visible Agrabah frames. It now recognises
+only the initial level palette call chain while retaining the VDP/map guards:
+PC 1DCD2C/1DCD32, stack returns 1DD034, 1D8900 and 1D30E2. This avoids treating
+all fades, or menus carrying stale map metadata, as gameplay. No emulated
+state or save format changes; the render decision is derived from core state.
+
+`fade_wide_verify ROM` boots every level through Session with the existing
+level-selection hooks, without start_level's 120-frame warmup. All 11 Aladdin
+and 10 Lion entries have visible side pixels from their first visible level
+frame. It checks original-centre pixels, RAM and CPU PC against a reference
+with extension rendering disabled and verifies save/image replay from the
+first visible frame. The test fails on the pre-fix Aladdin module with
+"visible level starts with masked sides". Lion required no further changes.
+
+Six host suites, ten menu fixtures, the Lion continue regression and Aladdin's
+60-frame scanout fixture also pass. Private evidence and first-frame capture:
+`build/instant-wide/`. Native OpenOrbis build passes; this does not establish
+physical-console acceptance of the new timing.

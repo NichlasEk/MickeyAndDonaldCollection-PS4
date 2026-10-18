@@ -6,8 +6,19 @@
 #include "../core/md.h"
 #include <algorithm>
 namespace {
+bool level_fade_in(const MegaDrive& md) {
+ // The initial palette fade waits for VBlank with FF7E2E cleared for 16
+ // frames, although the level is already on screen. Recognise that specific
+ // call chain, not every palette fade: menus can retain old map metadata.
+ // wait_vblank -> fade_palette -> level_palette -> level_initialisation.
+ const unsigned sp=md.cpu.r[15]&0xffffff;
+ return (md.cpu.pc==0x1dcd2c || md.cpu.pc==0x1dcd32) &&
+    sp>=0xff0000 && sp<=0xfffff2 &&
+    md.ram32(sp)==0x1dd034 && md.ram32(sp+6)==0x1d8900 &&
+    md.ram32(sp+10)==0x1d30e2;
+}
 bool playing(const MegaDrive& md) {
- return md.ram[0x7e2e]==0xff && ((md.vdp.reg[11]&3)==0 || (md.vdp.reg[11]&3)==2) &&
+ return (md.ram[0x7e2e]==0xff || level_fade_in(md)) && ((md.vdp.reg[11]&3)==0 || (md.vdp.reg[11]&3)==2) &&
     (md.vdp.reg[2]&0x38)==0x30 && (md.vdp.reg[16]&0x33)==1 &&
     md.ram16(0x7dc8)>=320 && md.ram16(0x7dcc)>=224;
 }

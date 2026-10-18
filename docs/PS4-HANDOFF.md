@@ -1,3 +1,24 @@
+# Latest delivery: 0.12 immediate Aladdin level fade
+
+Uploaded to `192.168.32.229:2121` at
+`/data/pkg/MickeyDonald-PS4-0.12-Test.pkg`, with manifest and checksum.
+All three files were read back and SHA-256 verified before final rename.
+Package SHA-256: `8511bee37bdab27fc7bf22d42eb4f7b0ecd1e10421968aa34e7ee2159f59d778`.
+EBOOT SHA-256: `863a3640a2e5d4ed0a58c2e96fa2765f9c748c4dafa79c677fb5a5999902e7c5`.
+Exact extracted payload set and nine file hashes match the manifest, plus the
+96-byte generated keystone. No ROMs or saves are included.
+Evidence: `build/release-012-{package.log,ftp.json}`.
+
+Aladdin's initial palette fade now renders the sides from the first visible
+frame instead of closing them while its VBlank wait flag is clear. All 21
+level starts pass the new no-warmup test, including centre/RAM/PC equivalence
+and first-visible-frame save replay. Pre-fix Aladdin fails this regression.
+Six host suites, ten menu fixtures, Lion continue and Aladdin scanout pass.
+See `docs/re_new_games_wide.md` and private `build/instant-wide/` evidence.
+No additional Lion change was needed. Save format unchanged.
+Native build/package validation passes. Installation and physical-console
+acceptance remain pending. GitHub release ps4-v0.11 is unchanged.
+
 # Public GitHub release: PS4 0.11
 
 Published public prerelease `ps4-v0.11`:

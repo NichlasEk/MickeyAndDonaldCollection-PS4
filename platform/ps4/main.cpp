@@ -185,7 +185,7 @@ void benchmark(int frames) {
 }
 int main() {
     report=std::fopen("/data/mickey-donald-ps4.log","w");
-    note("Mickey & Donald PS4 0.11: native Vulkan + 48000 Hz stereo AudioOut");
+    note("Mickey & Donald PS4 0.12: native Vulkan + 48000 Hz stereo AudioOut");
     try {
         vk_ps4_log_open("/data/mickey-donald-vulkan.log");
         if(FILE* fixture=std::fopen("/app0/mdc-benchmark-frames.txt","r")) {
